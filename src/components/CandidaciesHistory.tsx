@@ -365,104 +365,104 @@ export default function CandidaciesHistory({
         </form>
       )}
 
+      {/* Advanced Filtering Panel */}
+      <div className="bg-white rounded-xl border border-neutral-200/80 p-4 shadow-sm space-y-4">
+        <div className="text-[11px] font-bold text-neutral-700 flex items-center gap-1.5 uppercase tracking-wider border-b border-neutral-100 pb-2">
+          <Filter className="w-4 h-4 text-indigo-500" />
+          Filtros de Búsqueda y Organización del Historial
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Text Search Input */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-neutral-500 uppercase">Filtrar por texto</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-neutral-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Empresa, vacante, notas..."
+                className="w-full text-xs pl-9 pr-3 py-2 border border-neutral-200 rounded-lg bg-neutral-50/50 focus:outline-none focus:border-indigo-500 font-medium text-neutral-800"
+              />
+            </div>
+          </div>
+
+          {/* Status Filter Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-neutral-500 uppercase">Fase de Selección</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full text-xs bg-neutral-50/50 border border-neutral-200 rounded-lg p-2 font-semibold text-neutral-800 focus:outline-none"
+            >
+              <option value="all">📁 Todas las etapas</option>
+              <option value="guardado">📂 Guardados</option>
+              <option value="postulado">✉️ Postulados</option>
+              <option value="entrevista">📅 En Entrevistas</option>
+              <option value="ofrecido">🏆 Ofrecidos/Ofertas</option>
+              <option value="rechazado">❌ No Seleccionados</option>
+            </select>
+          </div>
+
+          {/* Environment Filter Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-neutral-500 uppercase">Modalidad de Trabajo</label>
+            <select
+              value={locationTypeFilter}
+              onChange={(e) => setLocationTypeFilter(e.target.value)}
+              className="w-full text-xs bg-neutral-50/50 border border-neutral-200 rounded-lg p-2 font-semibold text-neutral-800 focus:outline-none"
+            >
+              <option value="all">🌍 Cualquier modalidad</option>
+              <option value="remoto">🌐 Remoto</option>
+              <option value="hibrido">🏢 Híbrido</option>
+              <option value="presencial">📍 Presencial</option>
+            </select>
+          </div>
+
+          {/* Sorting Selection Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-neutral-500 uppercase">Ordenar por</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="w-full text-xs bg-neutral-50/50 border border-neutral-200 rounded-lg p-2 font-semibold text-neutral-800 focus:outline-none"
+            >
+              <option value="recent">🗓️ Más recientes primero</option>
+              <option value="old">🗓️ Más antiguas primero</option>
+              <option value="company">🏢 Empresa (A-Z)</option>
+              <option value="title">💼 Puesto (A-Z)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Clear filters trigger */}
+        {(searchQuery || statusFilter !== "all" || locationTypeFilter !== "all") && (
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setStatusFilter("all");
+                setLocationTypeFilter("all");
+              }}
+              className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none"
+            >
+              Limpiar Filtros Activos
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* RENDER VIEW ACCORDING TO VIEWTYPE */}
       {viewType === 'kanban' ? (
         <ApplicationsTracker
-          candidacies={candidacies}
+          candidacies={filteredAndSortedCandidacies}
           onUpdateCandidacy={onUpdateCandidacy}
           onDeleteCandidacy={onDeleteCandidacy}
           onAddCustomCandidacy={onAddCustomCandidacy}
         />
       ) : (
         <div className="space-y-4">
-          {/* Advanced Filtering Panel */}
-          <div className="bg-white rounded-xl border border-neutral-200/80 p-4 shadow-sm space-y-4">
-            <div className="text-[11px] font-bold text-neutral-700 flex items-center gap-1.5 uppercase tracking-wider border-b border-neutral-100 pb-2">
-              <Filter className="w-4 h-4 text-indigo-500" />
-              Filtros de Búsqueda y Organización del Historial
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Text Search Input */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-neutral-500 uppercase">Filtrar por texto</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-neutral-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Empresa, vacante, notas..."
-                    className="w-full text-xs pl-9 pr-3 py-2 border border-neutral-200 rounded-lg bg-neutral-50/50 focus:outline-none focus:border-indigo-500 font-medium text-neutral-800"
-                  />
-                </div>
-              </div>
-
-              {/* Status Filter Dropdown */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-neutral-500 uppercase">Fase de Selección</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full text-xs bg-neutral-50/50 border border-neutral-200 rounded-lg p-2 font-semibold text-neutral-800 focus:outline-none"
-                >
-                  <option value="all">📁 Todas las etapas</option>
-                  <option value="guardado">📂 Guardados</option>
-                  <option value="postulado">✉️ Postulados</option>
-                  <option value="entrevista">📅 En Entrevistas</option>
-                  <option value="ofrecido">🏆 Ofrecidos/Ofertas</option>
-                  <option value="rechazado">❌ No Seleccionados</option>
-                </select>
-              </div>
-
-              {/* Environment Filter Dropdown */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-neutral-500 uppercase">Modalidad de Trabajo</label>
-                <select
-                  value={locationTypeFilter}
-                  onChange={(e) => setLocationTypeFilter(e.target.value)}
-                  className="w-full text-xs bg-neutral-50/50 border border-neutral-200 rounded-lg p-2 font-semibold text-neutral-800 focus:outline-none"
-                >
-                  <option value="all">🌍 Cualquier modalidad</option>
-                  <option value="remoto">🌐 Remoto</option>
-                  <option value="hibrido">🏢 Híbrido</option>
-                  <option value="presencial">📍 Presencial</option>
-                </select>
-              </div>
-
-              {/* Sorting Selection Dropdown */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-neutral-500 uppercase">Ordenar por</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="w-full text-xs bg-neutral-50/50 border border-neutral-200 rounded-lg p-2 font-semibold text-neutral-800 focus:outline-none"
-                >
-                  <option value="recent">🗓️ Más recientes primero</option>
-                  <option value="old">🗓️ Más antiguas primero</option>
-                  <option value="company">🏢 Empresa (A-Z)</option>
-                  <option value="title">💼 Puesto (A-Z)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Clear filters trigger */}
-            {(searchQuery || statusFilter !== "all" || locationTypeFilter !== "all") && (
-              <div className="flex justify-end">
-                <button
-                  onClick={() => {
-                    setSearchQuery("");
-                    setStatusFilter("all");
-                    setLocationTypeFilter("all");
-                  }}
-                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none"
-                >
-                  Limpiar Filtros Activos
-                </button>
-              </div>
-            )}
-          </div>
-
           {/* Results List View Table-styled Container */}
           <div className="bg-white rounded-xl border border-neutral-200/80 overflow-hidden shadow-sm">
             {filteredAndSortedCandidacies.length === 0 ? (

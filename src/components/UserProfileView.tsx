@@ -127,6 +127,10 @@ export default function UserProfileView({ profile, onUpdateProfile, isDarkMode, 
   const [eduDegree, setEduDegree] = useState("");
   const [eduDuration, setEduDuration] = useState("");
 
+  const [exportTheme, setExportTheme] = useState<"indigo" | "charcoal" | "emerald" | "blue">("indigo");
+  const [exportGroupSkills, setExportGroupSkills] = useState(true);
+  const [exportIncludeContact, setExportIncludeContact] = useState(true);
+
   const handleSyncLinkedIn = () => {
     const width = 580;
     const height = 700;
@@ -433,14 +437,101 @@ export default function UserProfileView({ profile, onUpdateProfile, isDarkMode, 
               </div>
               <button
                 type="button"
-                onClick={() => exportUserProfileToPDF(profile)}
-                className="w-full mt-2.5 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:shadow-sm"
+                onClick={() => exportUserProfileToPDF(profile, {
+                  themeColor: exportTheme,
+                  groupSkills: exportGroupSkills,
+                  includeContact: exportIncludeContact
+                })}
+                className="w-full mt-2.5 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:shadow-sm"
               >
-                <Download className="w-4.5 h-4.5" />
-                Descargar CV en PDF
+                <Download className="w-4 h-4" />
+                Exportar a PDF
               </button>
             </div>
           )}
+        </div>
+
+        {/* Export to PDF Custom Options Card */}
+        <div id="export-pdf-card" className="bg-white rounded-xl border border-neutral-200/80 p-5 shadow-sm space-y-4">
+          <div className="border-b border-neutral-100 dark:border-neutral-800 pb-3">
+            <h3 className="text-sm font-bold text-neutral-800 flex items-center gap-1.5 uppercase tracking-wider">
+              <Download className="w-4 h-4 text-indigo-500" />
+              Configurar Exportación
+            </h3>
+            <p className="text-[11px] text-neutral-500 mt-1 leading-relaxed">
+              Personaliza el diseño de tu currículum profesional antes de guardarlo en PDF.
+            </p>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {/* Color Theme Selector */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider">Paleta de Color</span>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "indigo", label: "Índigo", border: "border-indigo-500/50", dot: "bg-indigo-600" },
+                  { id: "charcoal", label: "Gris Elegante", border: "border-slate-500/50", dot: "bg-slate-700" },
+                  { id: "emerald", label: "Esmeralda", border: "border-emerald-500/50", dot: "bg-emerald-600" },
+                  { id: "blue", label: "Azul Corporativo", border: "border-blue-500/50", dot: "bg-blue-600" },
+                ].map((theme) => (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    onClick={() => setExportTheme(theme.id as any)}
+                    className={`py-2 px-2.5 rounded-lg text-[10px] font-bold text-left cursor-pointer transition-all border flex items-center gap-1.5 ${
+                      exportTheme === theme.id
+                        ? `bg-neutral-50 border-indigo-600 dark:bg-slate-800 dark:border-indigo-400 font-extrabold text-neutral-900 dark:text-white shadow-xs`
+                        : "bg-neutral-50 hover:bg-neutral-100 text-neutral-500 border-neutral-200/60 dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-neutral-800 dark:text-neutral-400"
+                    }`}
+                  >
+                    <span className={`w-2.5 h-2.5 rounded-full ${theme.dot} shrink-0`} />
+                    {theme.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Checkboxes for Layout Options */}
+            <div className="space-y-2 pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={exportGroupSkills}
+                  onChange={(e) => setExportGroupSkills(e.target.checked)}
+                  className="rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                />
+                <span className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">
+                  Agrupar habilidades por categoría
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={exportIncludeContact}
+                  onChange={(e) => setExportIncludeContact(e.target.checked)}
+                  className="rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                />
+                <span className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">
+                  Incluir email y número de teléfono
+                </span>
+              </label>
+            </div>
+
+            {/* Primary Action Button */}
+            <button
+              type="button"
+              onClick={() => exportUserProfileToPDF(profile, {
+                themeColor: exportTheme,
+                groupSkills: exportGroupSkills,
+                includeContact: exportIncludeContact
+              })}
+              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs hover:shadow-md mt-2"
+            >
+              <Download className="w-4.5 h-4.5" />
+              Generar y Exportar a PDF
+            </button>
+          </div>
         </div>
 
         {/* LinkedIn AI Sync Card */}

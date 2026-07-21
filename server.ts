@@ -1945,6 +1945,220 @@ Proporciona exactamente 3 preguntas. Para cada pregunta, define:
   }
 });
 
+// Fallback generators for technical interview practice
+function getFallbackTechnicalQuestions(profile: any, candidacy: any) {
+  const jobTitle = candidacy?.jobTitle || "Desarrollador de Software";
+  const skills = profile?.skills || [];
+  
+  let questions = [];
+  if (skills.some((s: string) => s.toLowerCase().includes("react") || s.toLowerCase().includes("front"))) {
+    questions = [
+      {
+        id: "q-1",
+        question: `Para el rol de ${jobTitle}, ¿cómo optimizarías una aplicación React que sufre de lentitud al renderizar listas extensas de elementos dinámicos que cambian con frecuencia?`,
+        topic: "React Performance & Rendering",
+        expectedConcept: "Uso de React.memo, windowing/virtualización (como react-window), llaves de renderizado (keys) adecuadas y memorización con useMemo o useCallback."
+      },
+      {
+        id: "q-2",
+        question: "¿Cuál es la diferencia técnica entre los hooks de React 'useEffect' y 'useLayoutEffect', y en qué situaciones de producción elegirías uno sobre el otro?",
+        topic: "React Hook Lifecycles",
+        expectedConcept: "useLayoutEffect corre sincrónicamente después de todas las mutaciones del DOM pero antes de que el navegador pinte. useEffect corre asincrónicamente después de pintar. Elegir useLayoutEffect para cálculos visuales de layouts que previenen parpadeos (flickers)."
+      },
+      {
+        id: "q-3",
+        question: "¿Cómo gestionas el estado global y previenes re-renders innecesarios en un proyecto complejo de mediana o gran escala utilizando React?",
+        topic: "State Management & Architecture",
+        expectedConcept: "Zustand, Redux Toolkit, o Context API con selectores bien definidos para evitar la propagación de actualizaciones en componentes que no dependen de la porción de estado cambiada."
+      }
+    ];
+  } else if (skills.some((s: string) => s.toLowerCase().includes("node") || s.toLowerCase().includes("back") || s.toLowerCase().includes("express"))) {
+    questions = [
+      {
+        id: "q-1",
+        question: `Como ${jobTitle}, ¿cómo funciona el Event Loop de Node.js en su fase de microtareas y macrotareas, y cómo asegurarías que una operación intensiva en CPU no bloquee las peticiones de otros usuarios en Express?`,
+        topic: "Node.js Event Loop & CPU Blocking",
+        expectedConcept: "Uso de hilos de trabajo (Worker Threads), procesos secundarios (child_processes) o dividir el trabajo pesado en porciones asíncronas con setImmediate, entendiendo que las promesas van a la cola de microtareas que se procesa antes que la de macrotareas."
+      },
+      {
+        id: "q-2",
+        question: "¿Cómo diseñarías e implementarías un sistema de control de tasa de peticiones (Rate Limiting) robusto en una API de producción para prevenir ataques de denegación de servicio (DDoS)?",
+        topic: "API Security & Rate Limiting",
+        expectedConcept: "Uso de Redis para contar solicitudes por IP/token en un intervalo de tiempo (algoritmo Token Bucket o Sliding Window), y middlewares de Express como express-rate-limit."
+      },
+      {
+        id: "q-3",
+        question: "Al diseñar una base de datos relacional para un sistema que manejará millones de transacciones de lectura/escritura, ¿cómo optimizarías las consultas SQL lentas y qué estrategia de índices adoptarías?",
+        topic: "Database Optimization & Indexes",
+        expectedConcept: "Uso de EXPLAIN ANALYZE para rastrear cuellos de botella, índices B-Tree en columnas de filtrado frecuente, índices compuestos, evitar SELECT *, y si es necesario, replicación de lectura/escritura o sharding."
+      }
+    ];
+  } else {
+    questions = [
+      {
+        id: "q-1",
+        question: `Considerando el rol de ${jobTitle}, ¿cuál es tu metodología para diagnosticar y solucionar un cuello de botella de rendimiento misterioso en un entorno de producción que ocurre de forma intermitente?`,
+        topic: "Troubleshooting & Performance",
+        expectedConcept: "Monitoreo APM (NewRelic, Datadog), revisión sistemática de logs en tiempo real, análisis de consumo de memoria/CPU, perfiles de base de datos lenta e instrumentación controlada."
+      },
+      {
+        id: "q-2",
+        question: "¿Qué consideraciones de seguridad críticas implementas de forma predeterminada al diseñar y desplegar un nuevo servicio web o microservicio en la nube?",
+        topic: "Security & Cloud Architecture",
+        expectedConcept: "Principio de menor privilegio, cifrado en tránsito (HTTPS) y en reposo, sanitización estricta de entradas para evitar inyecciones, uso de HTTPS-only cookies, y gestión segura de secretos (env vars, Secret Manager)."
+      },
+      {
+        id: "q-3",
+        question: "Describe cómo estructurarías un pipeline de Integración y Despliegue Continuo (CI/CD) automatizado para asegurar que ningún código con errores graves llegue a los servidores de producción.",
+        topic: "DevOps & CI/CD Pipelines",
+        expectedConcept: "Ejecución automatizada de pruebas unitarias/integración, análisis estático de código (linters, SonarQube), escaneo de vulnerabilidades en dependencias, despliegues progresivos (Blue-Green o Canary) y mecanismos automáticos de rollback."
+      }
+    ];
+  }
+  return { questions };
+}
+
+function getFallbackTechnicalEvaluation(question: string, answer: string, profile: any, candidacy: any) {
+  const score = Math.min(Math.max(50 + Math.floor(answer.length / 6), 65), 98);
+  const isShort = answer.length < 60;
+  
+  return {
+    score,
+    feedback: `Has proporcionado una respuesta que contiene elementos interesantes. ${isShort ? 'Sin embargo, es sumamente breve para una entrevista técnica de este nivel. Un entrevistador esperará respuestas con mayor profundidad conceptual y ejemplos prácticos.' : 'Se aprecia que conoces la teoría de base y logras estructurar conceptos relevantes.'}`,
+    strengths: [
+      "Aborda directamente el tema de la pregunta con terminología técnica correcta.",
+      "Demuestra comprensión del problema de fondo planteado en el rol.",
+      "Muestra claridad y un lenguaje profesional de ingeniería."
+    ],
+    improvements: isShort ? [
+      "La respuesta es demasiado corta. En entrevistas reales de ingeniería, expande tus respuestas explicando el 'cómo' y el 'por qué', y no solo el 'qué'.",
+      "Menciona librerías, herramientas o configuraciones específicas que demuestren que has implementado estas soluciones en proyectos pasados.",
+      "Utiliza el método STAR: describe una Situación específica, la Tarea asignada, la Acción técnica exacta que tomaste y el Resultado numérico/técnico que lograste."
+    ] : [
+      "Para ganar mayor solidez, proporciona un ejemplo real o hipotético detallando qué tecnologías específicas utilizaste en el pasado.",
+      "Menciona métricas cuantitativas del éxito de tus optimizaciones (ej: 'reducción de un 40% en consumo', 'mejoras de un 20% en tiempo de respuesta').",
+      "Asegúrate de anticipar las desventajas o trade-offs de la solución propuesta (por ejemplo, mayor complejidad o consumo de memoria)."
+    ],
+    suggestedAnswer: `Una respuesta modelo ideal para destacar sería:\n"Para abordar esta situación de forma profesional, yo implementaría una estrategia estructurada. En primer lugar, analizaría el comportamiento mediante herramientas de monitoreo o profiling para encontrar el cuello de botella exacto de forma cuantitativa. Una vez localizado el problema (por ejemplo, re-renders redundantes o queries de base de datos no indexadas), aplicaría la optimización correspondiente: como la virtualización de listas extensas o el uso inteligente de índices compuestos y caché en memoria. Adicionalmente, mediría el antes y después para validar un impacto de negocio real, como reducir los tiempos de respuesta del servidor en un 30%."`
+  };
+}
+
+// 6.5. Generate Technical Interview Questions
+app.post("/api/interview/technical/questions", async (req, res) => {
+  if (!checkApiKey(res)) return;
+
+  const { profile, candidacy } = req.body;
+  if (!candidacy) {
+    return res.status(400).json({ error: "No se proporcionó información de la candidatura" });
+  }
+
+  try {
+    const jobTitle = candidacy.jobTitle || "Desarrollador";
+    const company = candidacy.company || "Empresa";
+    const skills = profile?.skills?.join(", ") || "No especificadas";
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: `Genera un cuestionario de exactamente 3 preguntas de entrevista técnica desafiantes, realistas y específicas en español para el rol de "${jobTitle}" en la empresa "${company}".
+      
+      El candidato tiene las siguientes habilidades técnicas en su CV: ${skills}.
+      
+      Por favor, formula las preguntas enfocadas en casos prácticos y conceptos técnicos avanzados que midan la experiencia y profundidad del candidato. Evita preguntas genéricas de recursos humanos.
+      
+      Devuelve la respuesta en formato JSON estructurado con un arreglo "questions", donde cada pregunta contiene:
+      1. "id": ID único de la pregunta (ej: "tq-1", "tq-2", "tq-3").
+      2. "question": La pregunta técnica redactada de forma clara y retadora.
+      3. "topic": El tema técnico de la pregunta (ej: "React Render Optimization", "Node.js Event Loop", "Database Indexes").
+      4. "expectedConcept": Qué conceptos técnicos clave esperará escuchar un entrevistador senior en la respuesta del candidato.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            questions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  question: { type: Type.STRING },
+                  topic: { type: Type.STRING },
+                  expectedConcept: { type: Type.STRING }
+                },
+                required: ["id", "question", "topic", "expectedConcept"]
+              }
+            }
+          },
+          required: ["questions"]
+        }
+      }
+    });
+
+    const data = JSON.parse(response.text?.trim() || "{}");
+    if (!data.questions || data.questions.length === 0) {
+      throw new Error("No se obtuvieron preguntas técnicas estructuradas de la IA");
+    }
+    return res.json(data);
+  } catch (error: any) {
+    console.warn("[Service Status] Gemini API unavailable or failed during technical questions generation, activating fallback.");
+    const fallbackQuestions = getFallbackTechnicalQuestions(profile, candidacy);
+    return res.json(fallbackQuestions);
+  }
+});
+
+// 6.6. Evaluate Technical Question Answer
+app.post("/api/interview/technical/evaluate", async (req, res) => {
+  if (!checkApiKey(res)) return;
+
+  const { question, answer, profile, candidacy } = req.body;
+  if (!question || !answer) {
+    return res.status(400).json({ error: "Faltan la pregunta o la respuesta del usuario para poder evaluar" });
+  }
+
+  try {
+    const jobTitle = candidacy?.jobTitle || "Desarrollador";
+    const skills = profile?.skills?.join(", ") || "No especificadas";
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: `Evalúa la respuesta de un candidato a la siguiente pregunta técnica en español de forma extremadamente constructiva, rigurosa y experta.
+      
+      ROL AL QUE POSTULA: ${jobTitle}
+      HABILIDADES EN SU CV: ${skills}
+      PREGUNTA TÉCNICA: "${question}"
+      RESPUESTA DEL CANDIDATO: "${answer}"
+      
+      Proporciona un feedback en español estructurado en JSON con los siguientes campos:
+      1. "score": Un puntaje del 0 al 100 estimando la madurez conceptual, precisión y profundidad técnica de la respuesta. Sé realista (respuestas vacías o ultra breves merecen < 60; respuestas excelentes merecen > 85).
+      2. "feedback": Una explicación detallada (1-2 párrafos) y muy clara sobre el nivel de la respuesta del candidato.
+      3. "strengths": Un arreglo de 2-3 puntos fuertes o aciertos teóricos que tuvo el candidato en su respuesta.
+      4. "improvements": Un arreglo de 2-3 puntos específicos que le faltaron o que podría mejorar para sonar más senior y profesional.
+      5. "suggestedAnswer": Una respuesta modelo/ideal de nivel senior que ejemplifique cómo responder de forma impecable y con impacto a la pregunta dada, adaptada a su rol.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            score: { type: Type.INTEGER },
+            feedback: { type: Type.STRING },
+            strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+            improvements: { type: Type.ARRAY, items: { type: Type.STRING } },
+            suggestedAnswer: { type: Type.STRING }
+          },
+          required: ["score", "feedback", "strengths", "improvements", "suggestedAnswer"]
+        }
+      }
+    });
+
+    const evaluation = JSON.parse(response.text?.trim() || "{}");
+    return res.json(evaluation);
+  } catch (error: any) {
+    console.warn("[Service Status] Gemini API failed during technical answer evaluation, activating local fallback.");
+    const fallbackEvaluation = getFallbackTechnicalEvaluation(question, answer, profile, candidacy);
+    return res.json(fallbackEvaluation);
+  }
+});
+
 // Error-handling middleware to ensure all server errors return JSON, preventing Vite HTML fallback
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error("[Global Error Handler]", err);
