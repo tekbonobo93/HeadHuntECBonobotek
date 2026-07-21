@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+/* Polished global dark mode override rules */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body, .dark #root {
+  background-color: #0b0f19 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Container and card overrides in dark mode */
+.dark .bg-white {
+  background-color: #131c2e !important;
+}
+
+.dark .bg-slate-50, .dark .bg-slate-50/50 {
+  background-color: #0b0f19 !important;
+}
+
+.dark .bg-neutral-50, .dark .bg-neutral-50/50 {
+  background-color: #192338 !important;
+}
+
+.dark .bg-neutral-100, .dark .bg-slate-100 {
+  background-color: #1f2d47 !important;
+}
+
+/* Borders */
+.dark .border-neutral-200, 
+.dark .border-neutral-200/80,
+.dark .border-slate-200, 
+.dark .border-slate-200/80,
+.dark .border-neutral-100,
+.dark .border-slate-100,
+.dark .border-slate-200/60 {
+  border-color: #263552 !important;
+}
+
+/* Text elements */
+.dark .text-slate-900,
+.dark .text-neutral-900,
+.dark .text-slate-800,
+.dark .text-neutral-800 {
+  color: #f8fafc !important;
+}
+
+.dark .text-slate-700,
+.dark .text-neutral-700,
+.dark .text-slate-600,
+.dark .text-neutral-600 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-500,
+.dark .text-neutral-500 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-slate-400,
+.dark .text-neutral-400 {
+  color: #64748b !important;
+}
+
+/* Form controls */
+.dark input, 
+.dark select, 
+.dark textarea {
+  background-color: #192338 !important;
+  border-color: #263552 !important;
+  color: #f8fafc !important;
+}
+
+.dark input::placeholder, 
+.dark textarea::placeholder {
+  color: #475569 !important;
+}
+
+/* Interactive elements */
+.dark button.bg-white {
+  background-color: #192338 !important;
+  color: #f8fafc !important;
+  border-color: #263552 !important;
+}
+
+.dark button.bg-white:hover {
+  background-color: #1f2d47 !important;
+}
+
+/* Scrollbars */
+.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+

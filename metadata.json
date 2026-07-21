@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Buscador de Empleo Inteligente con IA",
+  "description": "Plataforma inteligente que analiza tu CV con IA, gestiona tus preferencias de búsqueda y consolida ofertas laborales compatibles en un solo panel de control con seguimiento de postulaciones.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
