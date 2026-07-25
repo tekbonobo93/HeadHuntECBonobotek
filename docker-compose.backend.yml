@@ -33,8 +33,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    ports:
-      - "${BACKEND_PORT:-3000}:3000"
     pids_limit: 256
     mem_limit: 768m
     cpus: 1.00

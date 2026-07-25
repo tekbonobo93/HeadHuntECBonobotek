@@ -35,7 +35,6 @@ Use `docker-compose.yml` only as the aggregated local stack for development and 
 - `BACKEND_UPSTREAM=http://backend:3000`
 - Backend:
 - `PORT=3000`
-- `BACKEND_PORT=3000`
 - `HOST=0.0.0.0`
 - `TRUST_PROXY=true`
 - `NODE_ENV=production`
@@ -61,6 +60,7 @@ Use `docker-compose.yml` only as the aggregated local stack for development and 
   - Container port: `3000`
   - Health check path: `/health`
   - Keep this service private when frontend proxies `/api`
+  - Do not publish a host port for this service in Dokploy
 - PostgreSQL:
   - Compose file: `docker-compose.postgres.yml`
   - Service name: `postgres`
