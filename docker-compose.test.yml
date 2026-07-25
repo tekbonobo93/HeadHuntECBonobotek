@@ -1,0 +1,51 @@
+services:
+  backend:
+    environment:
+      APP_URL: http://frontend
+      SMTP_HOST: smtp.test.local
+      SMTP_PORT: "587"
+      SMTP_SECURE: "false"
+      SMTP_USER: smoke-user
+      SMTP_PASS: smoke-pass
+      SMTP_FROM: TalentoMatch IA <smoke@example.com>
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-test-key}
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: workspace
+    environment:
+      NODE_ENV: test
+      PORT: 3000
+      HOST: 0.0.0.0
+      TRUST_PROXY: "true"
+      APP_URL: http://frontend
+      INITIAL_ADMIN_EMAIL: admin@ejemplo.com
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/headhunt
+      PGSSL: "false"
+      REDIS_URL: redis://redis:6379
+      AUTH_RATE_LIMIT_STRATEGY: memory
+      AUTH_PREVIEW_LINKS: "true"
+      APP_STATE_USER_ID: default
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-test-key}
+    command: ["npm", "run", "test"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles: ["test"]
+
+  smoke-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: workspace
+    environment:
+      SMOKE_BASE_URL: http://frontend
+    command: ["npm", "run", "smoke:postdeploy"]
+    depends_on:
+      frontend:
+        condition: service_healthy
+    profiles: ["test"]

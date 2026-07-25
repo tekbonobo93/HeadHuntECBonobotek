@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Upload, FileText, AlertCircle, Sparkles, Check } from "lucide-react";
 import { UserProfile } from "../types";
+import { createJsonApiInit } from "../utils/serverState";
 import CVPreviewVerifier from "./CVPreviewVerifier";
 
 interface CVUploaderProps {
@@ -39,9 +40,10 @@ export default function CVUploader({ onAnalysisComplete, isLoading, setIsLoading
 
     try {
       const response = await fetch("/api/cv/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cvText: text }),
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({ cvText: text }),
+        }),
       });
 
       if (!response.ok) {
@@ -98,12 +100,13 @@ export default function CVUploader({ onAnalysisComplete, isLoading, setIsLoading
 
     try {
       const response = await fetch("/api/cv/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          fileData: base64Data, 
-          mimeType: mimeType,
-          fileName: name
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({ 
+            fileData: base64Data, 
+            mimeType: mimeType,
+            fileName: name,
+          }),
         }),
       });
 

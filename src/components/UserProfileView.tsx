@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { User, Mail, Phone, Code, Briefcase, Plus, X, Save, Edit3, Trash, Settings, Sun, Moon, Linkedin, RefreshCw, Download, GraduationCap, Tag, Sparkles, Check, Layers, HelpCircle } from "lucide-react";
 import { UserProfile, ExperienceItem } from "../types";
-import { exportUserProfileToPDF } from "../utils/pdfGenerator";
 import EmailAlertsWidget from "./EmailAlertsWidget";
 
 const SKILL_CATEGORIES = [
@@ -130,6 +129,7 @@ export default function UserProfileView({ profile, onUpdateProfile, isDarkMode, 
   const [exportTheme, setExportTheme] = useState<"indigo" | "charcoal" | "emerald" | "blue">("indigo");
   const [exportGroupSkills, setExportGroupSkills] = useState(true);
   const [exportIncludeContact, setExportIncludeContact] = useState(true);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const handleSyncLinkedIn = () => {
     const width = 580;
@@ -268,6 +268,21 @@ export default function UserProfileView({ profile, onUpdateProfile, isDarkMode, 
       ...profile,
       education: (profile.education || []).filter((_, idx) => idx !== indexToRemove)
     });
+  };
+
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+
+    try {
+      const { exportUserProfileToPDF } = await import("../utils/pdfGenerator");
+      exportUserProfileToPDF(profile, {
+        themeColor: exportTheme,
+        groupSkills: exportGroupSkills,
+        includeContact: exportIncludeContact
+      });
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   // Group skills by category
@@ -437,15 +452,12 @@ export default function UserProfileView({ profile, onUpdateProfile, isDarkMode, 
               </div>
               <button
                 type="button"
-                onClick={() => exportUserProfileToPDF(profile, {
-                  themeColor: exportTheme,
-                  groupSkills: exportGroupSkills,
-                  includeContact: exportIncludeContact
-                })}
-                className="w-full mt-2.5 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:shadow-sm"
+                onClick={() => void handleExportPdf()}
+                disabled={isExportingPdf}
+                className="w-full mt-2.5 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-wait shadow-xs hover:shadow-sm"
               >
                 <Download className="w-4 h-4" />
-                Exportar a PDF
+                {isExportingPdf ? "Generando PDF..." : "Exportar a PDF"}
               </button>
             </div>
           )}
@@ -521,15 +533,12 @@ export default function UserProfileView({ profile, onUpdateProfile, isDarkMode, 
             {/* Primary Action Button */}
             <button
               type="button"
-              onClick={() => exportUserProfileToPDF(profile, {
-                themeColor: exportTheme,
-                groupSkills: exportGroupSkills,
-                includeContact: exportIncludeContact
-              })}
-              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs hover:shadow-md mt-2"
+              onClick={() => void handleExportPdf()}
+              disabled={isExportingPdf}
+              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-wait shadow-xs hover:shadow-md mt-2"
             >
               <Download className="w-4.5 h-4.5" />
-              Generar y Exportar a PDF
+              {isExportingPdf ? "Generando PDF..." : "Generar y Exportar a PDF"}
             </button>
           </div>
         </div>

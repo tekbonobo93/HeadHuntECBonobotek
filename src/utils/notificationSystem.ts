@@ -2,45 +2,25 @@
  * Advanced Notification and Web Audio Sound Synthesizer System
  * Enables background desktop alerts and customizable audios even if the tab is minimized.
  */
+import { NotificationConfig, SoundType } from "../types";
+import { fetchPersistedState, getNotificationConfigCache, patchPersistedState, setNotificationConfigCache } from "./serverState";
 
-export type SoundType = "classic" | "cyber" | "success" | "gentle" | "none";
+export type { NotificationConfig, SoundType };
 
-export interface NotificationConfig {
-  soundType: SoundType;
-  volume: number; // range 0 to 1
-  desktopEnabled: boolean;
-}
-
-const DEFAULT_CONFIG: NotificationConfig = {
-  soundType: "classic",
-  volume: 0.5,
-  desktopEnabled: false,
+export const loadNotificationConfig = (): NotificationConfig => {
+  return getNotificationConfigCache();
 };
 
-// Safe localStorage helper
-export const loadNotificationConfig = (): NotificationConfig => {
-  try {
-    const saved = localStorage.getItem("talentomatch_notification_config");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        soundType: parsed.soundType || DEFAULT_CONFIG.soundType,
-        volume: typeof parsed.volume === "number" ? parsed.volume : DEFAULT_CONFIG.volume,
-        desktopEnabled: typeof parsed.desktopEnabled === "boolean" ? parsed.desktopEnabled : DEFAULT_CONFIG.desktopEnabled,
-      };
-    }
-  } catch (e) {
-    console.error("Failed to load notification config", e);
-  }
-  return DEFAULT_CONFIG;
+export const syncNotificationConfigFromServer = async (): Promise<NotificationConfig> => {
+  const state = await fetchPersistedState();
+  return state.notificationConfig;
 };
 
 export const saveNotificationConfig = (config: NotificationConfig): void => {
-  try {
-    localStorage.setItem("talentomatch_notification_config", JSON.stringify(config));
-  } catch (e) {
-    console.error("Failed to save notification config", e);
-  }
+  setNotificationConfigCache(config);
+  void patchPersistedState({ notificationConfig: config }).catch((error) => {
+    console.error("Failed to save notification config", error);
+  });
 };
 
 /**

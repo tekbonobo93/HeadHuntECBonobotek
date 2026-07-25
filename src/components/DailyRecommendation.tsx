@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Sparkles, CheckCircle2, RefreshCw, AlertCircle, Award, GraduationCap, BookOpen, Search, Zap, Check } from "lucide-react";
 import { DailyRecommendation as DailyRecType, UserProfile, Candidacy } from "../types";
 import { motion, AnimatePresence } from "motion/react";
+import { createJsonApiInit } from "../utils/serverState";
 
 interface DailyRecommendationProps {
   profile: UserProfile;
@@ -53,9 +54,10 @@ export default function DailyRecommendation({
 
     try {
       const response = await fetch("/api/jobs/daily-recommendation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, candidacies })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({ profile, candidacies }),
+        }),
       });
 
       if (!response.ok) {

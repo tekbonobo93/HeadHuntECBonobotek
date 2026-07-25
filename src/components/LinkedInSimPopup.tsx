@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Linkedin, Shield, Sparkles, RefreshCw, AlertCircle, X, Check, User, Code, Briefcase, FileText } from "lucide-react";
+import { createJsonApiInit } from "../utils/serverState";
 
 export default function LinkedInSimPopup() {
   const [selectedProfileId, setSelectedProfileId] = useState<string>("silva");
@@ -110,9 +111,10 @@ export default function LinkedInSimPopup() {
 
     try {
       const response = await fetch("/api/jobs/linkedin-import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ linkedinData })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({ linkedinData }),
+        }),
       });
 
       if (!response.ok) {

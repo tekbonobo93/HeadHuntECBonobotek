@@ -1,26 +1,9 @@
 /**
  * Email Alert Subscription & Simulated Weekly Digest System
  */
-import { UserProfile, JobOffer } from "../types";
+import { UserProfile, JobOffer, EmailAlertConfig, SimulatedEmail } from "../types";
 
-export interface EmailAlertConfig {
-  email: string;
-  isSubscribed: boolean;
-  frequency: "lunes" | "viernes" | "quincenal";
-  minCompatibilityScore: number;
-  includeMarketAnalysis: boolean;
-  includeInterviewTips: boolean;
-}
-
-export interface SimulatedEmail {
-  id: string;
-  subject: string;
-  sentDate: string;
-  sender: string;
-  bodyHtml: string;
-  jobsCount: number;
-  jobTitles: string[];
-}
+export type { EmailAlertConfig, SimulatedEmail };
 
 const DEFAULT_CONFIG = (profileEmail?: string): EmailAlertConfig => ({
   email: profileEmail || "",

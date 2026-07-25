@@ -1,0 +1,4 @@
+interface:
+  display_name: "HeadHunt Project"
+  short_description: "Workflow for TalentoMatch IA changes"
+  default_prompt: "Use $headhunt-project to implement a safe change in TalentoMatch IA."

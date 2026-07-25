@@ -7,6 +7,7 @@ import {
   Copy, FileText, Check, Settings
 } from "lucide-react";
 import { AIRecommendation, UserProfile, Candidacy, CareerGoal, QuizQuestion } from "../types";
+import { createJsonApiInit } from "../utils/serverState";
 
 interface AIInsightsProps {
   profile: UserProfile;
@@ -377,15 +378,16 @@ export default function AIInsights({ profile, candidacies }: AIInsightsProps) {
 
     try {
       const response = await fetch("/api/jobs/cover-letter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profile,
-          jobTitle,
-          company,
-          jobDescription,
-          tone: clTone
-        })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({
+            profile,
+            jobTitle,
+            company,
+            jobDescription,
+            tone: clTone,
+          }),
+        }),
       });
 
       if (!response.ok) {
@@ -480,12 +482,13 @@ export default function AIInsights({ profile, candidacies }: AIInsightsProps) {
 
     try {
       const response = await fetch("/api/goals/quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: goal.title,
-          description: goal.description
-        })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({
+            title: goal.title,
+            description: goal.description,
+          }),
+        }),
       });
 
       if (!response.ok) {
@@ -560,12 +563,13 @@ export default function AIInsights({ profile, candidacies }: AIInsightsProps) {
     setRecsError(null);
     try {
       const response = await fetch("/api/jobs/recommendations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profile,
-          candidacies
-        })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({
+            profile,
+            candidacies,
+          }),
+        }),
       });
 
       if (!response.ok) {
@@ -592,12 +596,13 @@ export default function AIInsights({ profile, candidacies }: AIInsightsProps) {
     setSalaryError(null);
     try {
       const response = await fetch("/api/jobs/salary-comparison", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profile,
-          candidacies
-        })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({
+            profile,
+            candidacies,
+          }),
+        }),
       });
 
       if (!response.ok) {
@@ -681,12 +686,13 @@ export default function AIInsights({ profile, candidacies }: AIInsightsProps) {
 
     try {
       const response = await fetch("/api/interview/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profile,
-          candidacy: selectedCand
-        })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({
+            profile,
+            candidacy: selectedCand,
+          }),
+        }),
       });
 
       if (!response.ok) {
@@ -726,14 +732,15 @@ export default function AIInsights({ profile, candidacies }: AIInsightsProps) {
 
     try {
       const response = await fetch("/api/interview/respond", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profile,
-          candidacy: selectedCand,
-          chatHistory: updatedHistory,
-          userResponse: currentAnswer
-        })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({
+            profile,
+            candidacy: selectedCand,
+            chatHistory: updatedHistory,
+            userResponse: currentAnswer,
+          }),
+        }),
       });
 
       if (!response.ok) {

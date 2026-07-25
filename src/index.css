@@ -17,11 +17,11 @@
   background-color: #111c30 !important;
 }
 
-.dark .bg-slate-50, .dark .bg-slate-50/50 {
+.dark .bg-slate-50, .dark .bg-slate-50\/50 {
   background-color: #090d16 !important;
 }
 
-.dark .bg-neutral-50, .dark .bg-neutral-50/50 {
+.dark .bg-neutral-50, .dark .bg-neutral-50\/50 {
   background-color: #162238 !important;
 }
 
@@ -32,18 +32,18 @@
   background-color: #1b253b !important;
 }
 
-.dark .bg-slate-200/60 {
+.dark .bg-slate-200\/60 {
   background-color: #162238 !important;
 }
 
 /* Borders */
 .dark .border-neutral-200, 
-.dark .border-neutral-200/80,
+.dark .border-neutral-200\/80,
 .dark .border-slate-200, 
-.dark .border-slate-200/80,
+.dark .border-slate-200\/80,
 .dark .border-neutral-100,
 .dark .border-slate-100,
-.dark .border-slate-200/60 {
+.dark .border-slate-200\/60 {
   border-color: #1e293b !important;
 }
 
@@ -74,7 +74,7 @@
 
 /* Alert, badges and glowing tags overrides in dark mode */
 .dark .bg-indigo-50, 
-.dark .bg-indigo-50/50 {
+.dark .bg-indigo-50\/50 {
   background-color: rgba(99, 102, 241, 0.15) !important;
 }
 .dark .border-indigo-100, 
@@ -87,7 +87,7 @@
 }
 
 .dark .bg-amber-50, 
-.dark .bg-amber-50/50 {
+.dark .bg-amber-50\/50 {
   background-color: rgba(245, 158, 11, 0.12) !important;
 }
 .dark .border-amber-100, 
@@ -100,9 +100,9 @@
 }
 
 .dark .bg-emerald-50, 
-.dark .bg-emerald-50/50, 
+.dark .bg-emerald-50\/50, 
 .dark .bg-green-50, 
-.dark .bg-green-50/50 {
+.dark .bg-green-50\/50 {
   background-color: rgba(16, 185, 129, 0.12) !important;
 }
 .dark .border-emerald-200, 
@@ -119,7 +119,7 @@
 }
 
 .dark .bg-red-50, 
-.dark .bg-red-50/50 {
+.dark .bg-red-50\/50 {
   background-color: rgba(239, 68, 68, 0.12) !important;
 }
 .dark .border-red-200, 
@@ -132,7 +132,7 @@
 }
 
 .dark .bg-blue-50, 
-.dark .bg-blue-50/50 {
+.dark .bg-blue-50\/50 {
   background-color: rgba(59, 130, 246, 0.12) !important;
 }
 .dark .border-blue-100, 

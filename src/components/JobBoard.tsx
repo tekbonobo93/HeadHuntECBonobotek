@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Search, Globe, Clock, Briefcase, Tag, Sparkles, ExternalLink, Bookmark, CheckCircle, ChevronDown, ChevronUp, AlertCircle, Info, SlidersHorizontal } from "lucide-react";
 import { JobOffer, UserProfile } from "../types";
+import { createJsonApiInit } from "../utils/serverState";
 
 // Helper function to extract numeric salary information
 function parseSalaryNumbers(salaryStr: string): { min: number; max: number } {
@@ -95,16 +96,17 @@ export default function JobBoard({ profile, onSaveJob, savedJobIds, appliedJobId
 
     try {
       const response = await fetch("/api/jobs/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query,
-          profile: {
-            skills: profile.skills,
-            experience: profile.experience
-          },
-          preferences: profile.preferences
-        })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({
+            query,
+            profile: {
+              skills: profile.skills,
+              experience: profile.experience,
+            },
+            preferences: profile.preferences,
+          }),
+        }),
       });
 
       if (!response.ok) {
@@ -114,6 +116,7 @@ export default function JobBoard({ profile, onSaveJob, savedJobIds, appliedJobId
 
       const results = await response.json();
       setJobs(results);
+      localStorage.setItem("talentomatch_cached_jobs", JSON.stringify(results));
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Error al conectar con el servidor de búsqueda inteligente.");

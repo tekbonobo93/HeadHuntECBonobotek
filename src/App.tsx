@@ -1,25 +1,26 @@
-import React, { useState, useEffect } from "react";
-import { Sparkles, Briefcase, ListTodo, ClipboardList, GraduationCap, UserCircle, Globe, Settings, Terminal, CheckCircle2, ChevronRight, AlertCircle, BarChart2, Sun, Moon, TrendingUp, Clock, Bell } from "lucide-react";
-import { UserProfile, Candidacy, JobOffer, JobNotification } from "./types";
+import React, { lazy, Suspense, useEffect, useState } from "react";
+import { Sparkles, Briefcase, ListTodo, ClipboardList, GraduationCap, UserCircle, Globe, Settings, Terminal, CheckCircle2, ChevronRight, AlertCircle, BarChart2, Sun, Moon, TrendingUp, Clock, Bell, LogOut } from "lucide-react";
+import { AuthUser, UserProfile, Candidacy, JobOffer, JobNotification } from "./types";
 import {
   loadNotificationConfig,
   playSynthesizedNotification,
   sendDesktopNotification
 } from "./utils/notificationSystem";
-import CVUploader from "./components/CVUploader";
 import PreferencesForm from "./components/PreferencesForm";
-import JobBoard from "./components/JobBoard";
-import ApplicationsTracker from "./components/ApplicationsTracker";
-import CandidaciesHistory from "./components/CandidaciesHistory";
-import AIInsights from "./components/AIInsights";
-import UserProfileView from "./components/UserProfileView";
-import SearchStats from "./components/SearchStats";
-import MarketAnalysis from "./components/MarketAnalysis";
 import NotificationCenter from "./components/NotificationCenter";
-import DailyRecommendation from "./components/DailyRecommendation";
-import WeeklyGoals from "./components/WeeklyGoals";
-import LinkedInSimPopup from "./components/LinkedInSimPopup";
 import { SEED_CANDIDACIES, SIMULATED_JOB_POOL } from "./data";
+
+const CVUploader = lazy(() => import("./components/CVUploader"));
+const JobBoard = lazy(() => import("./components/JobBoard"));
+const ApplicationsTracker = lazy(() => import("./components/ApplicationsTracker"));
+const CandidaciesHistory = lazy(() => import("./components/CandidaciesHistory"));
+const AIInsights = lazy(() => import("./components/AIInsights"));
+const UserProfileView = lazy(() => import("./components/UserProfileView"));
+const SearchStats = lazy(() => import("./components/SearchStats"));
+const MarketAnalysis = lazy(() => import("./components/MarketAnalysis"));
+const DailyRecommendation = lazy(() => import("./components/DailyRecommendation"));
+const WeeklyGoals = lazy(() => import("./components/WeeklyGoals"));
+const LinkedInSimPopup = lazy(() => import("./components/LinkedInSimPopup"));
 
 const DEFAULT_PROFILE: UserProfile = {
   name: "",
@@ -44,7 +45,23 @@ const DEFAULT_PROFILE: UserProfile = {
   }
 };
 
-export default function App() {
+interface AppProps {
+  authUser: AuthUser | null;
+  onLogout: () => void | Promise<void>;
+}
+
+function SectionLoader() {
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+      <div className="flex items-center gap-3 text-sm text-slate-500">
+        <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+        Cargando modulo...
+      </div>
+    </div>
+  );
+}
+
+export default function App({ authUser, onLogout }: AppProps) {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [candidacies, setCandidacies] = useState<Candidacy[]>([]);
   const [activeTab, setActiveTab] = useState<'tracker' | 'jobs' | 'candidacies' | 'insights' | 'profile'>('tracker');
@@ -525,7 +542,11 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
   const appliedJobIds = candidacies.filter(c => c.status !== 'guardado').map(c => c.jobId);
 
   if (typeof window !== "undefined" && window.location.pathname === "/auth/linkedin-sim") {
-    return <LinkedInSimPopup />;
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-slate-50 p-6"><SectionLoader /></div>}>
+        <LinkedInSimPopup />
+      </Suspense>
+    );
   }
 
   return (
@@ -656,6 +677,24 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
           </div>
 
           <div className="flex items-center gap-4">
+            {authUser && (
+              <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500 text-white font-black text-xs flex items-center justify-center">
+                  {authUser.name.slice(0, 1).toUpperCase()}
+                </div>
+                <div className="leading-tight">
+                  <p className="text-[11px] font-black text-slate-800">{authUser.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] text-slate-400">{authUser.email}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${
+                      authUser.role === "admin" ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
+                    }`}>
+                      {authUser.role}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Unified Level & XP Header Widget */}
             <div 
               onClick={() => setActiveTab('insights')}
@@ -685,6 +724,14 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
               title={isDarkMode ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
             >
               {isDarkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-400" />}
+            </button>
+
+            <button
+              onClick={() => void onLogout()}
+              className="p-2 rounded-xl border border-slate-200 hover:bg-red-50 text-slate-500 hover:text-red-600 transition-all cursor-pointer flex items-center justify-center bg-white"
+              title="Cerrar sesión"
+            >
+              <LogOut className="w-4 h-4" />
             </button>
 
             <NotificationCenter
@@ -917,29 +964,35 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
               )}
 
               {/* Dynamic Daily Recommendation Section */}
-              <DailyRecommendation
-                profile={profile}
-                candidacies={candidacies}
-                onAwardXp={handleAwardXp}
-                isDarkMode={isDarkMode}
-              />
+              <Suspense fallback={<SectionLoader />}>
+                <DailyRecommendation
+                  profile={profile}
+                  candidacies={candidacies}
+                  onAwardXp={handleAwardXp}
+                  isDarkMode={isDarkMode}
+                />
+              </Suspense>
 
               {/* Weekly Goals Widget */}
-              <WeeklyGoals
-                candidacies={candidacies}
-                onAwardXp={handleAwardXp}
-                isDarkMode={isDarkMode}
-              />
+              <Suspense fallback={<SectionLoader />}>
+                <WeeklyGoals
+                  candidacies={candidacies}
+                  onAwardXp={handleAwardXp}
+                  isDarkMode={isDarkMode}
+                />
+              </Suspense>
 
               {trackerViewMode === 'kanban' ? (
                 <>
                   {/* Application pipeline */}
-                  <ApplicationsTracker
-                    candidacies={candidacies}
-                    onUpdateCandidacy={handleUpdateCandidacy}
-                    onDeleteCandidacy={handleDeleteCandidacy}
-                    onAddCustomCandidacy={handleAddCustomCandidacy}
-                  />
+                  <Suspense fallback={<SectionLoader />}>
+                    <ApplicationsTracker
+                      candidacies={candidacies}
+                      onUpdateCandidacy={handleUpdateCandidacy}
+                      onDeleteCandidacy={handleDeleteCandidacy}
+                      onAddCustomCandidacy={handleAddCustomCandidacy}
+                    />
+                  </Suspense>
 
                   {/* Helpful onboarding block if empty pipeline */}
                   {candidacies.length === 0 && (
@@ -963,9 +1016,13 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
                   )}
                 </>
               ) : trackerViewMode === 'stats' ? (
-                <SearchStats candidacies={candidacies} />
+                <Suspense fallback={<SectionLoader />}>
+                  <SearchStats candidacies={candidacies} />
+                </Suspense>
               ) : (
-                <MarketAnalysis />
+                <Suspense fallback={<SectionLoader />}>
+                  <MarketAnalysis />
+                </Suspense>
               )}
             </div>
           )}
@@ -986,12 +1043,14 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
               />
 
               {/* Aggregated Jobs Board */}
-              <JobBoard
-                profile={profile}
-                onSaveJob={handleSaveJob}
-                savedJobIds={candidacies.filter(c => c.status === "guardado").map(c => c.jobId)}
-                appliedJobIds={candidacies.filter(c => c.status === "postulado").map(c => c.jobId)}
-              />
+              <Suspense fallback={<SectionLoader />}>
+                <JobBoard
+                  profile={profile}
+                  onSaveJob={handleSaveJob}
+                  savedJobIds={savedJobIds}
+                  appliedJobIds={appliedJobIds}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -1004,12 +1063,14 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
                 </p>
               </div>
 
-              <CandidaciesHistory
-                candidacies={candidacies}
-                onUpdateCandidacy={handleUpdateCandidacy}
-                onDeleteCandidacy={handleDeleteCandidacy}
-                onAddCustomCandidacy={handleAddCustomCandidacy}
-              />
+              <Suspense fallback={<SectionLoader />}>
+                <CandidaciesHistory
+                  candidacies={candidacies}
+                  onUpdateCandidacy={handleUpdateCandidacy}
+                  onDeleteCandidacy={handleDeleteCandidacy}
+                  onAddCustomCandidacy={handleAddCustomCandidacy}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -1020,10 +1081,12 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
                 <p className="text-sm text-neutral-500">Asesoramiento inteligente de carrera y análisis de tus habilidades basado en tu portafolio profesional.</p>
               </div>
 
-              <AIInsights
-                profile={profile}
-                candidacies={candidacies}
-              />
+              <Suspense fallback={<SectionLoader />}>
+                <AIInsights
+                  profile={profile}
+                  candidacies={candidacies}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -1035,19 +1098,23 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
               </div>
 
               {/* Interactive CV Uploader / Extractor */}
-              <CVUploader
-                onAnalysisComplete={handleAnalysisComplete}
-                isLoading={isAnalyzingCv}
-                setIsLoading={setIsAnalyzingCv}
-              />
+              <Suspense fallback={<SectionLoader />}>
+                <CVUploader
+                  onAnalysisComplete={handleAnalysisComplete}
+                  isLoading={isAnalyzingCv}
+                  setIsLoading={setIsAnalyzingCv}
+                />
+              </Suspense>
 
               {/* User Profile display and editing */}
-              <UserProfileView
-                profile={profile}
-                onUpdateProfile={handleUpdateProfileDirectly}
-                isDarkMode={isDarkMode}
-                onToggleTheme={toggleTheme}
-              />
+              <Suspense fallback={<SectionLoader />}>
+                <UserProfileView
+                  profile={profile}
+                  onUpdateProfile={handleUpdateProfileDirectly}
+                  isDarkMode={isDarkMode}
+                  onToggleTheme={toggleTheme}
+                />
+              </Suspense>
             </div>
           )}
 

@@ -128,3 +128,89 @@ export interface DailyRecommendation {
   marketTrend: string;
 }
 
+export type SoundType = "classic" | "cyber" | "success" | "gentle" | "none";
+
+export interface NotificationConfig {
+  soundType: SoundType;
+  volume: number;
+  desktopEnabled: boolean;
+}
+
+export interface EmailAlertConfig {
+  email: string;
+  isSubscribed: boolean;
+  frequency: "lunes" | "viernes" | "quincenal";
+  minCompatibilityScore: number;
+  includeMarketAnalysis: boolean;
+  includeInterviewTips: boolean;
+}
+
+export interface SimulatedEmail {
+  id: string;
+  subject: string;
+  sentDate: string;
+  sender: string;
+  bodyHtml: string;
+  jobsCount: number;
+  jobTitles: string[];
+}
+
+export interface XpHistoryItem {
+  id: string;
+  text: string;
+  xp: number;
+  date: string;
+}
+
+export interface DailyRecommendationCache {
+  recommendation: DailyRecommendation | null;
+  date: string | null;
+  completed: boolean;
+}
+
+export interface CustomWeeklyGoal {
+  id: string;
+  title: string;
+  target: number;
+  current: number;
+  type: "postulaciones" | "manual";
+  claimed: boolean;
+}
+
+export interface PersistedAppState {
+  profile: UserProfile;
+  candidacies: Candidacy[];
+  notifications: JobNotification[];
+  userXp: number;
+  xpHistory: XpHistoryItem[];
+  unlockedBadges: string[];
+  completedInterviewsCount: number;
+  goals: CareerGoal[];
+  dailyRecommendationCache: DailyRecommendationCache;
+  weeklyGoals: CustomWeeklyGoal[];
+  weeklyGoalCycleStart: string;
+  notificationConfig: NotificationConfig;
+  emailAlertConfig: EmailAlertConfig;
+  simulatedEmails: SimulatedEmail[];
+  cachedJobs: JobOffer[];
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "user";
+  emailVerified: boolean;
+}
+
+export interface AuthSessionResponse {
+  authenticated: boolean;
+  user: AuthUser | null;
+  message?: string;
+  previewUrl?: string | null;
+  requiresEmailVerification?: boolean;
+  passwordResetEmailSent?: boolean;
+  verificationEmailSent?: boolean;
+  lockedUntil?: string | null;
+}
+

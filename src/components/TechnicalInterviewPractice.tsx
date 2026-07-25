@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { UserProfile, Candidacy } from "../types";
+import { createJsonApiInit } from "../utils/serverState";
 
 interface TechnicalInterviewPracticeProps {
   profile: UserProfile;
@@ -72,12 +73,13 @@ export default function TechnicalInterviewPractice({
 
     try {
       const response = await fetch("/api/interview/technical/questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profile,
-          candidacy: selectedCandidacy
-        })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({
+            profile,
+            candidacy: selectedCandidacy,
+          }),
+        }),
       });
 
       if (!response.ok) {
@@ -114,14 +116,15 @@ export default function TechnicalInterviewPractice({
 
     try {
       const response = await fetch("/api/interview/technical/evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: currentQuestion.question,
-          answer: answerText,
-          profile,
-          candidacy: selectedCandidacy
-        })
+        ...createJsonApiInit({
+          method: "POST",
+          body: JSON.stringify({
+            question: currentQuestion.question,
+            answer: answerText,
+            profile,
+            candidacy: selectedCandidacy,
+          }),
+        }),
       });
 
       if (!response.ok) {

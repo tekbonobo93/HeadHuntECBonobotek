@@ -1,0 +1,104 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    environment:
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://backend:3000}
+    ports:
+      - "${APP_PORT:-3100}:80"
+    read_only: true
+    tmpfs:
+      - /etc/nginx/conf.d
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 0.50
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      SERVE_FRONTEND: "false"
+      TRUST_PROXY: "true"
+      APP_URL: ${APP_URL:-http://localhost:3100}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@ejemplo.com}
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/headhunt
+      PGSSL: "false"
+      REDIS_URL: redis://redis:6379
+      AUTH_RATE_LIMIT_STRATEGY: redis
+      SMTP_HOST: ${SMTP_HOST:-smtp.local.test}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-local-smtp-user}
+      SMTP_PASS: ${SMTP_PASS:-local-smtp-pass}
+      SMTP_FROM: ${SMTP_FROM:-TalentoMatch IA <no-reply@local.test>}
+      AUTH_PREVIEW_LINKS: ${AUTH_PREVIEW_LINKS:-false}
+      APP_STATE_USER_ID: default
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: 1.00
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: headhunt
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d headhunt"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: 1.00
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 0.50
+
+volumes:
+  postgres_data:
+  redis_data:
