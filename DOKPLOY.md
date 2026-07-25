@@ -54,6 +54,7 @@ Use `docker-compose.yml` only as the aggregated local stack for development and 
   - Container port: `80`
   - Public port / domain: expose this service to users
   - Required env: `BACKEND_UPSTREAM=http://<backend-host>:3000` or the internal Dokploy URL of the backend
+  - Do not publish a host port for this service in Dokploy
 - Backend:
   - Compose file: `docker-compose.backend.yml`
   - Service name: `backend`

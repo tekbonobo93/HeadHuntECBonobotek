@@ -5,8 +5,6 @@ services:
       dockerfile: Dockerfile.frontend
     environment:
       BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://backend:3000}
-    ports:
-      - "${APP_PORT:-3100}:80"
     read_only: true
     tmpfs:
       - /etc/nginx/conf.d
