@@ -5,6 +5,10 @@ services:
       dockerfile: Dockerfile.frontend
     environment:
       BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://backend:3000}
+    networks:
+      headhunt_internal:
+        aliases:
+          - frontend
     read_only: true
     tmpfs:
       - /etc/nginx/conf.d
@@ -16,3 +20,8 @@ services:
     pids_limit: 128
     mem_limit: 256m
     cpus: 0.50
+
+networks:
+  headhunt_internal:
+    name: ${SHARED_NETWORK:-headhunt_internal}
+    external: true

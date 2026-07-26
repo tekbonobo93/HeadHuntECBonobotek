@@ -11,6 +11,35 @@ Recommended files for separate Dokploy services:
 
 Use `docker-compose.yml` only as the aggregated local stack for development and validation.
 
+## Shared network for split services
+
+If you deploy `frontend`, `backend`, `postgres`, and `redis` as separate Dokploy applications, they must join the same Docker network for internal DNS to work.
+
+Create it once on the server:
+
+```powershell
+docker network create headhunt_internal
+```
+
+Then set this variable in every Dokploy service:
+
+```env
+SHARED_NETWORK=headhunt_internal
+```
+
+All service-specific compose files are wired to that external network and publish stable aliases:
+
+- `frontend` -> `frontend`
+- `backend` -> `backend`
+- `postgres` -> `postgres`
+- `redis` -> `redis`
+
+With that shared network, these internal URLs are valid again:
+
+- `BACKEND_UPSTREAM=http://backend:3000`
+- `DATABASE_URL=postgresql://postgres:...@postgres:5432/headhunt`
+- `REDIS_URL=redis://redis:6379`
+
 ## Required environment variables
 
 - Frontend:
@@ -53,7 +82,8 @@ Use `docker-compose.yml` only as the aggregated local stack for development and 
   - Service name: `frontend`
   - Container port: `80`
   - Public port / domain: expose this service to users
-  - Required env: `BACKEND_UPSTREAM=http://<backend-host>:3000` or the internal Dokploy URL of the backend
+  - Required env: `SHARED_NETWORK=headhunt_internal`
+  - Required env: `BACKEND_UPSTREAM=http://backend:3000`
   - Do not publish a host port for this service in Dokploy
 - Backend:
   - Compose file: `docker-compose.backend.yml`
@@ -61,14 +91,17 @@ Use `docker-compose.yml` only as the aggregated local stack for development and 
   - Container port: `3000`
   - Health check path: `/health`
   - Keep this service private when frontend proxies `/api`
+  - Required env: `SHARED_NETWORK=headhunt_internal`
   - Do not publish a host port for this service in Dokploy
 - PostgreSQL:
   - Compose file: `docker-compose.postgres.yml`
   - Service name: `postgres`
+  - Required env: `SHARED_NETWORK=headhunt_internal`
   - Expose only to trusted internal consumers when possible
 - Redis:
   - Compose file: `docker-compose.redis.yml`
   - Service name: `redis`
+  - Required env: `SHARED_NETWORK=headhunt_internal`
   - Expose only to trusted internal consumers when possible
 - Restart policy: `unless-stopped`
 - Runtime user: non-root
@@ -122,6 +155,7 @@ Use `docker-compose.yml` only as the aggregated local stack for development and 
 ## Notes
 
 - The frontend and backend are now deployed as separate services.
+- Separate Dokploy services require a shared external Docker network; otherwise hostnames like `backend` and `postgres` will not resolve across apps.
 - The frontend serves the Vite build through Nginx and proxies `/api`, `/health`, and `/health/live` to the backend.
 - For Dokploy split deployments, each service can now point to its own compose file instead of sharing one monolithic stack.
 - The backend no longer needs to serve the SPA unless `SERVE_FRONTEND=true` is set explicitly.

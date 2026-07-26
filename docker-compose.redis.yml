@@ -2,8 +2,10 @@ services:
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      headhunt_internal:
+        aliases:
+          - redis
     volumes:
       - redis_data:/data
     healthcheck:
@@ -19,3 +21,8 @@ services:
 
 volumes:
   redis_data:
+
+networks:
+  headhunt_internal:
+    name: ${SHARED_NETWORK:-headhunt_internal}
+    external: true

@@ -26,6 +26,10 @@ services:
       APP_STATE_USER_ID: ${APP_STATE_USER_ID:-default}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+    networks:
+      headhunt_internal:
+        aliases:
+          - backend
     read_only: true
     tmpfs:
       - /tmp
@@ -36,3 +40,8 @@ services:
     pids_limit: 256
     mem_limit: 768m
     cpus: 1.00
+
+networks:
+  headhunt_internal:
+    name: ${SHARED_NETWORK:-headhunt_internal}
+    external: true
