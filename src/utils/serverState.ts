@@ -1,4 +1,11 @@
-import { AuthSessionResponse, PersistedAppState } from "../types";
+import {
+  AdminObservabilityResponse,
+  AdminSecurityEventsResponse,
+  AdminUserMutationResponse,
+  AdminUsersResponse,
+  AuthSessionResponse,
+  PersistedAppState,
+} from "../types";
 import { createDefaultPersistedState } from "./persistedState";
 
 let notificationConfigCache = createDefaultPersistedState().notificationConfig;
@@ -151,4 +158,53 @@ export async function verifyEmailToken(token: string): Promise<AuthSessionRespon
     method: "POST",
     body: JSON.stringify({ token }),
   });
+}
+
+export async function fetchAdminUsers(): Promise<AdminUsersResponse> {
+  return requestJson<AdminUsersResponse>("/api/admin/users");
+}
+
+export async function fetchAdminObservability(): Promise<AdminObservabilityResponse> {
+  return requestJson<AdminObservabilityResponse>("/api/admin/observability");
+}
+
+export async function updateAdminUserRole(userId: string, role: "admin" | "user"): Promise<AdminUserMutationResponse> {
+  return requestJson<AdminUserMutationResponse>(`/api/admin/users/${encodeURIComponent(userId)}/role`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function updateAdminUserLock(userId: string, locked: boolean): Promise<AdminUserMutationResponse> {
+  return requestJson<AdminUserMutationResponse>(`/api/admin/users/${encodeURIComponent(userId)}/lock`, {
+    method: "PATCH",
+    body: JSON.stringify({ locked }),
+  });
+}
+
+export async function revokeAdminUserSessions(userId: string): Promise<{ revokedSessions: number }> {
+  return requestJson<{ revokedSessions: number }>(`/api/admin/users/${encodeURIComponent(userId)}/revoke-sessions`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function fetchAdminSecurityEvents(filters?: {
+  level?: "info" | "warn" | "error" | "all";
+  search?: string;
+  limit?: number;
+}): Promise<AdminSecurityEventsResponse> {
+  const params = new URLSearchParams();
+  if (filters?.level && filters.level !== "all") {
+    params.set("level", filters.level);
+  }
+  if (filters?.search?.trim()) {
+    params.set("search", filters.search.trim());
+  }
+  if (filters?.limit) {
+    params.set("limit", String(filters.limit));
+  }
+
+  const suffix = params.toString();
+  return requestJson<AdminSecurityEventsResponse>(`/api/admin/security-events${suffix ? `?${suffix}` : ""}`);
 }

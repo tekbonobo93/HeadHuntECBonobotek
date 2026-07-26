@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import App from "./App";
+import AdminApp from "./AdminApp";
 import LoginPage, { AuthMode } from "./components/LoginPage";
 import { AuthUser } from "./types";
+import { isAdminUser } from "./utils/authz";
 import { clearPersistedLocalState, initializeClientPersistence } from "./utils/clientPersistence";
 import {
   ApiError,
@@ -229,6 +231,14 @@ export default function AuthRoot() {
         onResendVerification={(email) => runGuestAction(() => handleResendVerification(email), "verify")}
       />
     );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  if (isAdminUser(user)) {
+    return <AdminApp authUser={user} onLogout={handleLogout} />;
   }
 
   return <App authUser={user} onLogout={handleLogout} />;

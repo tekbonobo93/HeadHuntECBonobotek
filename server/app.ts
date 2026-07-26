@@ -21,6 +21,7 @@ import {
   jobsSalaryComparisonHandler,
   jobsSearchHandler,
 } from "./aiHandlers";
+import { createAdminRouter } from "./routes/adminRoutes";
 import { createAiRouter } from "./routes/aiRoutes";
 import { createAuthRouter } from "./routes/authRoutes";
 import { createStateRouter } from "./routes/stateRoutes";
@@ -65,6 +66,8 @@ export function createApp() {
   );
 
   app.use("/api/auth", authRateLimitMiddleware, createAuthRouter());
+
+  app.use("/api/admin", requireAuthenticatedApiUser, createAdminRouter());
 
   app.use(
     "/api",

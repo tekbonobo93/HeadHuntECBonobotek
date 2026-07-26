@@ -26,6 +26,7 @@ export const serverConfig = {
     authJson: "64kb",
     stateJson: "1mb",
     aiJson: "2mb",
+    admin: "32kb",
     urlencoded: "32kb",
   },
   requestTimeoutsMs: {

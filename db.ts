@@ -47,6 +47,13 @@ interface BasicUserRow {
   email_verified_at: string | null;
 }
 
+interface AdminUserListRow extends BasicUserRow {
+  created_at: string;
+  failed_login_attempts: number;
+  locked_until: string | null;
+  active_sessions: string;
+}
+
 export type AuthenticationResult =
   | { ok: true; user: AuthUser }
   | { ok: false; reason: "invalid_credentials" | "email_not_verified" | "locked"; user?: AuthUser; lockedUntil?: string | null };
@@ -497,17 +504,23 @@ export async function deleteSession(token: string) {
 }
 
 export async function listUsers() {
-  const result = await pool.query<{
-    id: string;
-    email: string;
-    name: string;
-    role: UserRole;
-    email_verified_at: string | null;
-    created_at: string;
-  }>(
+  const result = await pool.query<AdminUserListRow>(
     `
-      SELECT id, email, name, role, email_verified_at, created_at
-      FROM users
+      SELECT
+        u.id,
+        u.email,
+        u.name,
+        u.role,
+        u.email_verified_at,
+        u.created_at,
+        u.failed_login_attempts,
+        u.locked_until,
+        COUNT(s.token_hash)::text AS active_sessions
+      FROM users u
+      LEFT JOIN user_sessions s
+        ON s.user_id = u.id
+       AND s.expires_at > NOW()
+      GROUP BY u.id, u.email, u.name, u.role, u.email_verified_at, u.created_at, u.failed_login_attempts, u.locked_until
       ORDER BY created_at ASC
     `,
   );
@@ -519,7 +532,80 @@ export async function listUsers() {
     role: row.role,
     emailVerified: Boolean(row.email_verified_at),
     createdAt: row.created_at,
+    failedLoginAttempts: row.failed_login_attempts,
+    lockedUntil: row.locked_until,
+    activeSessions: Number(row.active_sessions || "0"),
   }));
+}
+
+export async function updateUserRole(targetUserId: string, nextRole: UserRole, actorUserId: string) {
+  if (targetUserId === actorUserId && nextRole !== "admin") {
+    throw new Error("SELF_ROLE_DOWNGRADE_NOT_ALLOWED");
+  }
+
+  const current = await findUserById(targetUserId);
+  if (!current) {
+    return null;
+  }
+
+  if (current.role === "admin" && nextRole !== "admin") {
+    const adminCountResult = await pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM users WHERE role = 'admin'");
+    const adminCount = Number(adminCountResult.rows[0]?.count || "0");
+    if (adminCount <= 1) {
+      throw new Error("LAST_ADMIN_DOWNGRADE_NOT_ALLOWED");
+    }
+  }
+
+  const result = await pool.query<BasicUserRow>(
+    `
+      UPDATE users
+      SET role = $2,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, email, name, role, email_verified_at
+    `,
+    [targetUserId, nextRole],
+  );
+
+  return result.rowCount ? toAuthUser(result.rows[0]) : null;
+}
+
+export async function setUserLockState(targetUserId: string, lock: boolean) {
+  const result = await pool.query<{
+    id: string;
+    email: string;
+    name: string;
+    role: UserRole;
+    email_verified_at: string | null;
+    failed_login_attempts: number;
+    locked_until: string | null;
+  }>(
+    `
+      UPDATE users
+      SET failed_login_attempts = CASE WHEN $2 THEN GREATEST(failed_login_attempts, $3) ELSE 0 END,
+          locked_until = CASE WHEN $2 THEN NOW() + ($4 || ' minutes')::interval ELSE NULL END,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, email, name, role, email_verified_at, failed_login_attempts, locked_until
+    `,
+    [targetUserId, lock, LOGIN_LOCK_THRESHOLD, String(LOGIN_LOCK_MINUTES)],
+  );
+
+  if (!result.rowCount) {
+    return null;
+  }
+
+  const row = result.rows[0];
+  return {
+    user: toAuthUser(row),
+    failedLoginAttempts: row.failed_login_attempts,
+    lockedUntil: row.locked_until,
+  };
+}
+
+export async function revokeUserSessions(targetUserId: string) {
+  const result = await pool.query("DELETE FROM user_sessions WHERE user_id = $1", [targetUserId]);
+  return result.rowCount ?? 0;
 }
 
 export async function getPersistedState(userId: string): Promise<PersistedAppState> {

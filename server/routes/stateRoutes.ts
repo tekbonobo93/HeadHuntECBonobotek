@@ -1,11 +1,9 @@
 import express from "express";
-import { getPersistedState, listUsers, patchPersistedState } from "../../db";
+import { getPersistedState, patchPersistedState } from "../../db";
 import { AuthUser } from "../../src/types";
 import { serverConfig } from "../config";
 import { asyncHandler, badRequestError } from "../http";
-import { jsonBodyParser, requestTimeoutMiddleware, requireAdmin } from "../middleware";
-import { getObservabilitySnapshot } from "../observability";
-import { logSecurityEvent } from "../securityAudit";
+import { jsonBodyParser, requestTimeoutMiddleware } from "../middleware";
 import { statePatchSchema } from "../validation";
 
 export function createStateRouter() {
@@ -35,35 +33,5 @@ export function createStateRouter() {
       res.json(state);
     }),
   );
-
-  router.get(
-    "/admin/users",
-    requireAdmin,
-    requestTimeoutMiddleware(serverConfig.requestTimeoutsMs.admin, "consulta administrativa"),
-    asyncHandler(async (_req, res) => {
-      const user = res.locals.authUser as AuthUser;
-      const users = await listUsers();
-      logSecurityEvent("info", "admin.users_listed", _req, {
-        userId: user.id,
-        email: user.email,
-      });
-      res.json({ users });
-    }),
-  );
-
-  router.get(
-    "/admin/observability",
-    requireAdmin,
-    requestTimeoutMiddleware(serverConfig.requestTimeoutsMs.admin, "observabilidad administrativa"),
-    asyncHandler(async (_req, res) => {
-      const user = res.locals.authUser as AuthUser;
-      logSecurityEvent("info", "admin.observability_viewed", _req, {
-        userId: user.id,
-        email: user.email,
-      });
-      res.json(getObservabilitySnapshot());
-    }),
-  );
-
   return router;
 }

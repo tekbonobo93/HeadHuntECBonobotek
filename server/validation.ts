@@ -30,3 +30,11 @@ export const verifyTokenBodySchema = z.object({
 });
 
 export const statePatchSchema = z.record(z.string(), z.unknown());
+
+export const adminRoleUpdateSchema = z.object({
+  role: z.enum(["admin", "user"]),
+});
+
+export const adminLockUpdateSchema = z.object({
+  locked: z.boolean(),
+});

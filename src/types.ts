@@ -214,3 +214,93 @@ export interface AuthSessionResponse {
   lockedUntil?: string | null;
 }
 
+export interface AdminUserRecord {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "user";
+  emailVerified: boolean;
+  createdAt: string;
+  failedLoginAttempts: number;
+  lockedUntil: string | null;
+  activeSessions: number;
+}
+
+export interface AdminUsersResponse {
+  users: AdminUserRecord[];
+}
+
+export interface AdminUserMutationResponse {
+  user: AuthUser;
+  failedLoginAttempts?: number;
+  lockedUntil?: string | null;
+}
+
+export interface AdminAlertsSnapshot {
+  dbUnavailableActive: boolean;
+  highErrorRateActive: boolean;
+  geminiFailuresActive: boolean;
+  requestWindowMinutes: number;
+  geminiWindowMinutes: number;
+}
+
+export interface AdminRouteMetric {
+  route: string;
+  count: number;
+  errors: number;
+  errorRate: number;
+  avgDurationMs: number;
+  maxDurationMs: number;
+  lastDurationMs: number;
+  lastStatus: number;
+  lastSeenAt: string;
+}
+
+export interface AdminRequestsSnapshot {
+  windowCount: number;
+  windowErrors: number;
+  windowErrorRate: number;
+  routes: AdminRouteMetric[];
+}
+
+export interface AdminDatabaseSnapshot {
+  consecutiveFailures: number;
+  lastCheckedAt: string | null;
+  lastError: string | null;
+  latencyMs: number | null;
+  status: "healthy" | "degraded" | "unknown";
+}
+
+export interface AdminGeminiSnapshot {
+  byScope: Record<string, number>;
+  lastError: string | null;
+  lastFailureAt: string | null;
+  total: number;
+  windowFailures: number;
+}
+
+export interface AdminSecurityEvent {
+  timestamp: string;
+  category: "security_audit";
+  level: "info" | "warn" | "error";
+  event: string;
+  method: string;
+  path: string;
+  ip: string;
+  userAgent?: string;
+  details: Record<string, unknown>;
+}
+
+export interface AdminSecurityEventsResponse {
+  events: AdminSecurityEvent[];
+}
+
+export interface AdminObservabilityResponse {
+  uptimeSeconds: number;
+  startedAt: string;
+  alerts: AdminAlertsSnapshot;
+  requests: AdminRequestsSnapshot;
+  database: AdminDatabaseSnapshot;
+  gemini: AdminGeminiSnapshot;
+}
+
