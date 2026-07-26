@@ -1,5 +1,4 @@
 import { PersistedAppState } from "../types";
-import { SEED_CANDIDACIES } from "../data";
 import { fetchPersistedState, patchPersistedState } from "./serverState";
 
 const TRACKED_KEYS = new Set([
@@ -156,10 +155,6 @@ export async function initializeClientPersistence() {
 
   if (isServerStateEffectivelyEmpty(state) && hasMeaningfulLocalPatch(localPatch)) {
     state = await patchPersistedState(localPatch);
-  }
-
-  if (state.candidacies.length === 0) {
-    state = await patchPersistedState({ candidacies: SEED_CANDIDACIES });
   }
 
   mirrorStateToLocalStorage(state, originalSetItem, originalRemoveItem);

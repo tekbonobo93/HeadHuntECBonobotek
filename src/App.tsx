@@ -4,11 +4,9 @@ import { AuthUser, UserProfile, Candidacy, JobOffer, JobNotification } from "./t
 import {
   loadNotificationConfig,
   playSynthesizedNotification,
-  sendDesktopNotification
 } from "./utils/notificationSystem";
 import PreferencesForm from "./components/PreferencesForm";
 import NotificationCenter from "./components/NotificationCenter";
-import { SEED_CANDIDACIES, SIMULATED_JOB_POOL } from "./data";
 
 const CVUploader = lazy(() => import("./components/CVUploader"));
 const JobBoard = lazy(() => import("./components/JobBoard"));
@@ -212,23 +210,12 @@ export default function App({ authUser, onLogout }: AppProps) {
     if (savedCandidacies) {
       try {
         const parsed = JSON.parse(savedCandidacies);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setCandidacies(parsed);
-        } else {
-          // If empty array, seed it
-          setCandidacies(SEED_CANDIDACIES);
-          localStorage.setItem("talentomatch_candidacies", JSON.stringify(SEED_CANDIDACIES));
         }
       } catch (e) {
         console.error("Error loading candidacies", e);
-        // Seed as fallback
-        setCandidacies(SEED_CANDIDACIES);
-        localStorage.setItem("talentomatch_candidacies", JSON.stringify(SEED_CANDIDACIES));
       }
-    } else {
-      // No entry in localStorage, seed
-      setCandidacies(SEED_CANDIDACIES);
-      localStorage.setItem("talentomatch_candidacies", JSON.stringify(SEED_CANDIDACIES));
     }
 
     const savedNotifications = localStorage.getItem("talentomatch_notifications");
@@ -321,9 +308,8 @@ export default function App({ authUser, onLogout }: AppProps) {
     }
   };
 
-  const simulateNewJobMatch = (forced = false) => {
-    if (SIMULATED_JOB_POOL.length === 0) return;
-    
+  const handleMarkAsRead = (id: string) => {
+    /*
     setNotifications(prev => {
       const existingJobIds = prev.map(n => n.job.id);
       const availableJobs = SIMULATED_JOB_POOL.filter(j => !existingJobIds.includes(j.id));
@@ -398,9 +384,7 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
 
       return updated;
     });
-  };
-
-  const handleMarkAsRead = (id: string) => {
+    */
     setNotifications(prev => {
       const updated = prev.map(n => n.id === id ? { ...n, isRead: true } : n);
       localStorage.setItem("talentomatch_notifications", JSON.stringify(updated));
@@ -424,18 +408,6 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
   };
 
   // Background timer loop for automated job discovery matching configuration
-  useEffect(() => {
-    if (!profile.name) return;
-
-    const interval = setInterval(() => {
-      if (Math.random() < 0.3) {
-        simulateNewJobMatch(false);
-      }
-    }, 40000);
-
-    return () => clearInterval(interval);
-  }, [profile.name, profile.preferences, profile.skills]);
-
   const handlePreferencesChange = (updatedPrefs: UserProfile['preferences']) => {
     const updated = {
       ...profile,
@@ -740,7 +712,6 @@ Tiene un puntaje de compatibilidad estimado de ${score}%. Te sugerimos guardar e
               onMarkAllAsRead={handleMarkAllAsRead}
               onClearAll={handleClearAllNotifications}
               onSaveJob={handleSaveJob}
-              onTriggerManualSimulation={() => simulateNewJobMatch(true)}
               savedJobIds={savedJobIds}
               appliedJobIds={appliedJobIds}
             />

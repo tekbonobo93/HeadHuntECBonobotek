@@ -837,10 +837,270 @@ const cvAnalyzeHandler: express.RequestHandler = async (req, res) => {
   }
 };
 
+type SupportedJobSource = "remotive" | "adzuna";
+
+interface RealJobSearchCandidate {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  locationType: "remoto" | "presencial" | "hibrido";
+  jobType: "completa" | "parcial";
+  salary: string;
+  description: string;
+  requirements: string[];
+  sourcePlatform: string;
+  seniorityLevel: "trainee" | "junior" | "semi-senior" | "senior";
+  postedDate: string;
+  applyUrl: string;
+}
+
+function stripHtmlTags(value: string | undefined) {
+  return (value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function inferLocationType(location: string) {
+  const normalized = location.toLowerCase();
+  if (normalized.includes("hybrid") || normalized.includes("híbrido") || normalized.includes("hibrido")) {
+    return "hibrido" as const;
+  }
+  if (normalized.includes("remote") || normalized.includes("remoto") || normalized.includes("worldwide") || normalized.includes("anywhere")) {
+    return "remoto" as const;
+  }
+  return "presencial" as const;
+}
+
+function inferJobType(jobType: string | undefined) {
+  const normalized = (jobType || "").toLowerCase();
+  return normalized.includes("part") ? "parcial" as const : "completa" as const;
+}
+
+function inferSeniority(title: string, description: string) {
+  const text = `${title} ${description}`.toLowerCase();
+  if (text.includes("intern") || text.includes("trainee") || text.includes("practic")) {
+    return "trainee" as const;
+  }
+  if (text.includes("senior") || text.includes("lead") || text.includes("principal") || text.includes("staff")) {
+    return "senior" as const;
+  }
+  if (text.includes("junior") || text.includes("entry")) {
+    return "junior" as const;
+  }
+  return "semi-senior" as const;
+}
+
+function formatPostedDate(dateValue: string | undefined) {
+  if (!dateValue) return "Fecha no disponible";
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateValue;
+  }
+
+  const diffMs = Date.now() - parsed.getTime();
+  const diffHours = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60)));
+  if (diffHours < 24) {
+    return `Hace ${diffHours} hora${diffHours === 1 ? "" : "s"}`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) {
+    return "Ayer";
+  }
+  return `Hace ${diffDays} días`;
+}
+
+function extractRequirements(description: string, fallbackTerms: string[] = []) {
+  const knownKeywords = [
+    "react",
+    "typescript",
+    "javascript",
+    "node",
+    "node.js",
+    "next.js",
+    "aws",
+    "azure",
+    "gcp",
+    "docker",
+    "kubernetes",
+    "terraform",
+    "postgresql",
+    "postgres",
+    "python",
+    "java",
+    "figma",
+    "linux",
+    "devops",
+    "sre",
+    "ci/cd",
+    "graphql",
+    "sql",
+    "rest",
+  ];
+
+  const normalizedDescription = description.toLowerCase();
+  const matchedKeywords = knownKeywords.filter((keyword) => normalizedDescription.includes(keyword));
+  const combined = [...matchedKeywords, ...fallbackTerms].filter(Boolean);
+  const unique = Array.from(new Set(combined));
+  return unique.slice(0, 6).map((item) => item.toUpperCase() === item ? item : item.replace(/\b\w/g, (char) => char.toUpperCase()));
+}
+
+function calculateCompatibility(candidate: RealJobSearchCandidate, profile: any, preferences: any) {
+  let score = 55;
+  const reasons: string[] = [];
+  const profileSkills = (profile?.skills || []).map((skill: string) => skill.toLowerCase());
+  const requirements = candidate.requirements.map((item) => item.toLowerCase());
+
+  const matchingSkills = requirements.filter((requirement) =>
+    profileSkills.some((skill: string) => skill.includes(requirement) || requirement.includes(skill)),
+  );
+
+  if (matchingSkills.length > 0) {
+    score += Math.min(25, matchingSkills.length * 6);
+    reasons.push(`coincidencias técnicas en ${matchingSkills.slice(0, 3).join(", ")}`);
+  }
+
+  const preferredLocationType = preferences?.locationType || "cualquiera";
+  if (preferredLocationType === "cualquiera" || preferredLocationType === candidate.locationType) {
+    score += 12;
+    reasons.push(`modalidad ${candidate.locationType}`);
+  }
+
+  const preferredJobType = preferences?.jobType || "cualquiera";
+  if (preferredJobType === "cualquiera" || preferredJobType === candidate.jobType) {
+    score += 8;
+    reasons.push(`jornada ${candidate.jobType}`);
+  }
+
+  const expectedSeniority = preferences?.seniorityLevel || "cualquiera";
+  if (expectedSeniority === "cualquiera" || expectedSeniority === candidate.seniorityLevel) {
+    score += 10;
+    reasons.push(`seniority ${candidate.seniorityLevel}`);
+  }
+
+  score = Math.max(45, Math.min(98, score));
+  return {
+    compatibilityScore: score,
+    compatibilityAnalysis: reasons.length > 0
+      ? `Oferta real recuperada desde ${candidate.sourcePlatform}. Coincide contigo por ${reasons.join(", ")}. Revisa requisitos y aplica desde el enlace oficial.`
+      : `Oferta real recuperada desde ${candidate.sourcePlatform}. La coincidencia es moderada y conviene revisar requisitos, seniority y salario antes de aplicar.`,
+  };
+}
+
+async function fetchJsonWithTimeout(url: string, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "TalentoMatchIA/1.0",
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} while requesting ${url}`);
+    }
+
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchRemotiveJobs(query: string) {
+  const payload = await fetchJsonWithTimeout(`https://remotive.com/api/remote-jobs?limit=12&search=${encodeURIComponent(query)}`);
+  const jobs = Array.isArray(payload?.jobs) ? payload.jobs : [];
+
+  return jobs.map((job: any) => {
+    const description = stripHtmlTags(job.description);
+    return {
+      id: `remotive-${job.id}`,
+      title: job.title || "Vacante remota",
+      company: job.company_name || "Empresa no especificada",
+      location: job.candidate_required_location || "Worldwide",
+      locationType: inferLocationType(job.candidate_required_location || "remote"),
+      jobType: inferJobType(job.job_type),
+      salary: job.salary || "Salario no publicado",
+      description,
+      requirements: extractRequirements(description, [job.category, job.job_type]),
+      sourcePlatform: "Remotive",
+      seniorityLevel: inferSeniority(job.title || "", description),
+      postedDate: formatPostedDate(job.publication_date),
+      applyUrl: job.url,
+    } satisfies RealJobSearchCandidate;
+  });
+}
+
+async function fetchAdzunaJobs(query: string) {
+  const appId = process.env.ADZUNA_APP_ID;
+  const appKey = process.env.ADZUNA_APP_KEY;
+  if (!appId || !appKey) {
+    return [] as RealJobSearchCandidate[];
+  }
+
+  const country = process.env.ADZUNA_COUNTRY || "us";
+  const payload = await fetchJsonWithTimeout(
+    `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${encodeURIComponent(appId)}&app_key=${encodeURIComponent(appKey)}&results_per_page=12&what=${encodeURIComponent(query)}&content-type=application/json`,
+  );
+  const results = Array.isArray(payload?.results) ? payload.results : [];
+
+  return results.map((job: any) => {
+    const description = stripHtmlTags(job.description);
+    const area = Array.isArray(job.location?.area) ? job.location.area.filter(Boolean).join(", ") : "";
+    return {
+      id: `adzuna-${job.id}`,
+      title: job.title || "Vacante",
+      company: job.company?.display_name || "Empresa no especificada",
+      location: job.location?.display_name || area || "Ubicación no especificada",
+      locationType: inferLocationType(job.location?.display_name || area || ""),
+      jobType: inferJobType(job.contract_time),
+      salary: job.salary_min || job.salary_max
+        ? `${job.salary_min ? `$${Math.round(job.salary_min).toLocaleString()}` : ""}${job.salary_min && job.salary_max ? " - " : ""}${job.salary_max ? `$${Math.round(job.salary_max).toLocaleString()}` : ""}`
+        : "Salario no publicado",
+      description,
+      requirements: extractRequirements(description, [job.category?.label, job.contract_type]),
+      sourcePlatform: "Adzuna",
+      seniorityLevel: inferSeniority(job.title || "", description),
+      postedDate: formatPostedDate(job.created),
+      applyUrl: job.redirect_url,
+    } satisfies RealJobSearchCandidate;
+  });
+}
+
+async function searchRealJobs(query: string) {
+  const aggregated: RealJobSearchCandidate[] = [];
+  const seenUrls = new Set<string>();
+  const failures: string[] = [];
+
+  for (const source of ["remotive", "adzuna"] as SupportedJobSource[]) {
+    try {
+      const jobs = source === "remotive"
+        ? await fetchRemotiveJobs(query)
+        : await fetchAdzunaJobs(query);
+
+      for (const job of jobs) {
+        if (!job.applyUrl || seenUrls.has(job.applyUrl)) {
+          continue;
+        }
+        seenUrls.add(job.applyUrl);
+        aggregated.push(job);
+      }
+    } catch (error: any) {
+      failures.push(`${source}: ${error.message || error}`);
+    }
+  }
+
+  return { jobs: aggregated.slice(0, 12), failures };
+}
+
 // 2. Search & Aggregate Jobs Endpoint
 const jobsSearchHandler: express.RequestHandler = async (req, res) => {
-  if (!checkApiKey(res)) return;
-
   const { query, profile, preferences } = req.body;
 
   // Smart Query Generation
@@ -866,6 +1126,37 @@ const jobsSearchHandler: express.RequestHandler = async (req, res) => {
     } else {
       smartQuery = "cualquiera";
     }
+  }
+
+  try {
+    const { jobs, failures } = await searchRealJobs(smartQuery);
+    if (jobs.length === 0) {
+      if (failures.length > 0) {
+        console.warn("[Service Status] Real job providers failed:", failures.join(" | "));
+        return res.status(502).json({
+          error: "No fue posible consultar proveedores reales de empleo en este momento. Intenta de nuevo más tarde o configura credenciales de Adzuna para ampliar cobertura.",
+        });
+      }
+
+      return res.json([]);
+    }
+
+    const enrichedJobs = jobs.map((job) => ({
+      ...job,
+      ...calculateCompatibility(job, profile, preferences),
+    }));
+
+    return res.json(enrichedJobs);
+  } catch (error: any) {
+    recordGeminiFailure("jobs.search.realProviders", error);
+    return res.status(502).json({
+      error: "Error al consultar proveedores reales de empleo: " + (error.message || error)
+    });
+  }
+
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn("[Service Status] GEMINI_API_KEY missing during jobs search, serving fallback jobs.");
+    return res.json(getFallbackJobs(smartQuery, profile, preferences));
   }
 
   try {

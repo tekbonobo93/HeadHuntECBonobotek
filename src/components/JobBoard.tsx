@@ -62,8 +62,7 @@ export default function JobBoard({ profile, onSaveJob, savedJobIds, appliedJobId
       return job.applyUrl;
     }
     // Si es "#" o una URL simulada, creamos una búsqueda inteligente en Google para facilitarle encontrar el anuncio original real
-    const searchQuery = `${job.title} "${job.company}" vacante empleo ${job.location || ""} ${job.sourcePlatform || ""}`;
-    return `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+    return null;
   };
 
   // Trigger automated search on mount or when skills change to populate the board with personalized items

@@ -16,7 +16,6 @@ interface NotificationCenterProps {
   onMarkAllAsRead: () => void;
   onClearAll: () => void;
   onSaveJob: (job: JobOffer, status: 'guardado' | 'postulado') => void;
-  onTriggerManualSimulation: () => void;
   savedJobIds: string[];
   appliedJobIds: string[];
 }
@@ -27,7 +26,6 @@ export default function NotificationCenter({
   onMarkAllAsRead,
   onClearAll,
   onSaveJob,
-  onTriggerManualSimulation,
   savedJobIds,
   appliedJobIds
 }: NotificationCenterProps) {
@@ -164,22 +162,21 @@ export default function NotificationCenter({
             )}
           </div>
 
-          {/* Quick Simulation Trigger Section */}
+          {false && (
           <div className="bg-gradient-to-r from-indigo-50/70 to-indigo-50/20 px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
             <div className="space-y-0.5">
               <span className="text-[10px] text-indigo-800 font-extrabold uppercase tracking-wide block">Simulación de Alertas</span>
               <span className="text-[10px] text-slate-500 font-medium">Fuerza el escáner de IA para simular una vacante.</span>
             </div>
             <button
-              onClick={() => {
-                onTriggerManualSimulation();
-              }}
+              onClick={() => undefined}
               className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-xs active:scale-95"
             >
               <Activity className="w-3 h-3 text-indigo-200 animate-pulse" />
               Simular Ahora
             </button>
           </div>
+          )}
 
           {/* Collapsible Alerts Configuration Panel */}
           <div className="border-b border-slate-100">
