@@ -1,6 +1,7 @@
 import express from "express";
 import { GoogleGenAI, Type } from "@google/genai";
 import { recordGeminiFailure } from "./observability";
+import { deriveProfileSignals } from "./profileSignals";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -993,7 +994,6 @@ function calculateCompatibility(candidate: RealJobSearchCandidate, profile: any,
 async function fetchJsonWithTimeout(url: string, timeoutMs = 12000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     const response = await fetch(url, {
       headers: {
@@ -1099,6 +1099,42 @@ async function searchRealJobs(query: string) {
   return { jobs: aggregated.slice(0, 12), failures };
 }
 
+async function searchRealJobsForProfile(profile: any, explicitQuery?: string) {
+  const signals = deriveProfileSignals(profile, explicitQuery);
+  const aggregated: RealJobSearchCandidate[] = [];
+  const seenUrls = new Set<string>();
+  const failures: string[] = [];
+
+  for (const profileQuery of signals.searchQueries) {
+    const { jobs, failures: queryFailures } = await searchRealJobs(profileQuery);
+    failures.push(...queryFailures.map((failure) => `${profileQuery}: ${failure}`));
+
+    for (const job of jobs) {
+      const locationMatches =
+        signals.locationType === "cualquiera" || job.locationType === signals.locationType;
+      const seniorityMatches =
+        signals.seniority === "cualquiera" || job.seniorityLevel === signals.seniority;
+
+      if ((!locationMatches || !seniorityMatches) && aggregated.length >= 8) {
+        continue;
+      }
+
+      if (seenUrls.has(job.applyUrl)) {
+        continue;
+      }
+
+      seenUrls.add(job.applyUrl);
+      aggregated.push(job);
+    }
+  }
+
+  return {
+    signals,
+    jobs: aggregated.slice(0, 12),
+    failures,
+  };
+}
+
 // 2. Search & Aggregate Jobs Endpoint
 const jobsSearchHandler: express.RequestHandler = async (req, res) => {
   const { query, profile, preferences } = req.body;
@@ -1129,7 +1165,13 @@ const jobsSearchHandler: express.RequestHandler = async (req, res) => {
   }
 
   try {
-    const { jobs, failures } = await searchRealJobs(smartQuery);
+    const { jobs, failures } = await searchRealJobsForProfile(
+      {
+        ...profile,
+        preferences,
+      },
+      smartQuery,
+    );
     if (jobs.length === 0) {
       if (failures.length > 0) {
         console.warn("[Service Status] Real job providers failed:", failures.join(" | "));
@@ -1253,6 +1295,7 @@ INSTRUCCIONES IMPORTANTES:
 };
 
 function getFallbackDailyRecommendation(profile: any, candidacies: any) {
+  const signals = deriveProfileSignals(profile);
   const skills = profile?.skills || [];
   const recentJobTitle = candidacies && candidacies.length > 0 ? candidacies[0].jobTitle : null;
 
@@ -1292,6 +1335,7 @@ const jobsDailyRecommendationHandler: express.RequestHandler = async (req, res) 
   if (!checkApiKey(res)) return;
 
   const { profile, candidacies } = req.body;
+  const signals = deriveProfileSignals(profile);
 
   try {
     const response = await ai.models.generateContent({
@@ -1301,6 +1345,7 @@ const jobsDailyRecommendationHandler: express.RequestHandler = async (req, res) 
       PERFIL DEL CANDIDATO:
       - Habilidades: ${profile?.skills?.join(", ") || "No especificadas"}
       - Experiencia laboral: ${profile?.experience?.map((e: any) => `${e.role} en ${e.company}`).join(", ") || "No especificada"}
+      - Senales estructuradas del CV: ${signals.summary || "Sin senales suficientes"}
       - Preferencias de búsqueda: Location: ${profile?.preferences?.locationType || "Cualquiera"}, Job type: ${profile?.preferences?.jobType || "Cualquiera"}, Seniority: ${profile?.preferences?.seniorityLevel || "Cualquiera"}
 
       HISTORIAL DE POSTULACIONES / CANDIDATURAS:
@@ -1762,6 +1807,7 @@ const jobsRecommendationsHandler: express.RequestHandler = async (req, res) => {
   if (!checkApiKey(res)) return;
 
   const { profile, candidacies } = req.body;
+  const signals = deriveProfileSignals(profile);
 
   try {
     const response = await ai.models.generateContent({
@@ -1771,6 +1817,7 @@ const jobsRecommendationsHandler: express.RequestHandler = async (req, res) => {
 PERFIL DEL CANDIDATO:
 - Habilidades: ${profile?.skills?.join(", ") || "No especificadas"}
 - Experiencia laboral: ${profile?.experience?.map((e: any) => `${e.role} en ${e.company}`).join(", ") || "No especificada"}
+- Senales estructuradas del CV: ${signals.summary || "Sin senales suficientes"}
 - Preferencias de búsqueda: ${profile?.preferences?.locationType || "Cualquiera"} (${profile?.preferences?.jobType || "Cualquiera"}), Seniority: ${profile?.preferences?.seniorityLevel || "Cualquiera"}, Rango salarial deseado: ${profile?.preferences?.desiredSalaryRange?.min || 0} - ${profile?.preferences?.desiredSalaryRange?.max || "sin límite"} ${profile?.preferences?.desiredSalaryRange?.currency || "USD"}.
 
 ESTADO DE SUS POSTULACIONES ACTIVAS (HISTORIAL):
@@ -2021,7 +2068,7 @@ Instrucciones para la evaluación:
 const goalsQuizHandler: express.RequestHandler = async (req, res) => {
   if (!checkApiKey(res)) return;
 
-  const { title, description } = req.body;
+  const { title, description, profile } = req.body;
   if (!title) {
     return res.status(400).json({ error: "No se proporcionó el título de la meta" });
   }

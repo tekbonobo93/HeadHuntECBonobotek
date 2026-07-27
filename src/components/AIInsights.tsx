@@ -487,6 +487,7 @@ export default function AIInsights({ profile, candidacies }: AIInsightsProps) {
           body: JSON.stringify({
             title: goal.title,
             description: goal.description,
+            profile,
           }),
         }),
       });
