@@ -616,52 +616,55 @@ function getFallbackJobs(query: string, profile: any, preferences: any) {
 }
 
 function getFallbackRecommendations(profile: any, candidacies: any) {
-  const skills = profile?.skills || ["React", "Node.js", "TypeScript"];
-  const topSkill = skills[0] || "Desarrollo de Software";
+  const signals = deriveProfileSignals(profile);
+  const skills = signals.normalizedSkills.length > 0 ? signals.normalizedSkills : (profile?.skills || ["React", "Node.js", "TypeScript"]);
+  const topSkill = signals.headlineSkills[0] || skills[0] || "Desarrollo de Software";
+  const mainRole = signals.primaryRole || "Profesional de tecnologia";
+  const seniority = signals.seniority || profile?.preferences?.seniorityLevel || "semi-senior";
+  const searchFocus = signals.searchQueries[0] || mainRole;
   const activeProcesses = candidacies?.length || 0;
 
   return [
     {
-      title: "Optimización Estratégica de tu CV para ATS",
+      title: "OptimizaciÃ³n EstratÃ©gica de tu CV para ATS",
       category: "cv" as const,
-      description: `Basado en tu perfil enfocado en ${topSkill}, los sistemas ATS de las empresas buscan términos clave específicos. Te sugerimos estructurar tu currículum destacando logros cuantificables en lugar de solo listar tus responsabilidades de forma descriptiva.`,
+      description: `Tu CV proyecta un perfil de ${mainRole} con foco en ${topSkill}. Para vacantes ${seniority}, los ATS y recruiters priorizan logros medibles y palabras clave alineadas con ese rol objetivo.`,
       actionableSteps: [
-        "Añade métricas y porcentajes a tus puestos anteriores (ej: 'Mejora del 25% en rendimiento de carga').",
-        `Asegúrate de que la palabra clave '${topSkill}' aparezca en el título principal y en tu resumen ejecutivo.`
+        "AÃ±ade mÃ©tricas y porcentajes a tus puestos anteriores (ej: 'Mejora del 25% en rendimiento de carga').",
+        `Haz que '${mainRole}' y '${topSkill}' aparezcan de forma natural en tu titular profesional, resumen y experiencia relevante para reforzar la bÃºsqueda: ${searchFocus}.`
       ]
     },
     {
-      title: `Ruta de Aprendizaje: Especialización en ${topSkill}`,
+      title: `Ruta de Aprendizaje: ${mainRole}`,
       category: "skills" as const,
-      description: `Para complementar tus habilidades actuales en ${skills.slice(0, 3).join(", ")}, el mercado actual demanda fuerte dominio de metodologías ágiles, arquitectura en la nube (AWS/GCP) y patrones de diseño avanzados.`,
+      description: `Tu nÃºcleo tÃ©cnico hoy combina ${skills.slice(0, 4).join(", ")}. Para seguir creciendo como ${mainRole}, el mercado estÃ¡ premiando perfiles que conectan ese stack con despliegue, observabilidad y buenas prÃ¡cticas de arquitectura.`,
       actionableSteps: [
-        "Dedica 2 horas semanales a estudiar conceptos básicos de Docker y despliegue continuo (CI/CD).",
-        `Crea un proyecto práctico en tu portfolio que combine ${topSkill} con integración de bases de datos relacionales.`
+        "Dedica 2 horas semanales a estudiar conceptos bÃ¡sicos de Docker y despliegue continuo (CI/CD).",
+        `Construye una evidencia de portfolio orientada a ${mainRole} que combine ${topSkill} con una capacidad complementaria que hoy te acerque a vacantes reales: testing, cloud, monitoreo o bases de datos.`
       ]
     },
     {
-      title: activeProcesses > 0 ? "Preparación de entrevistas técnicas activas" : "Simulación de entrevistas y elevator pitch",
+      title: activeProcesses > 0 ? "PreparaciÃ³n de entrevistas tÃ©cnicas activas" : "SimulaciÃ³n de entrevistas y elevator pitch",
       category: "interview" as const,
-      description: activeProcesses > 0 
-        ? `Tienes ${activeProcesses} postulaciones activas en tu panel. Es momento de perfeccionar tu narrativa sobre proyectos anteriores y preparar respuestas con la metodología STAR.`
-        : "Prepárate para destacar en tus próximas postulaciones estructurando un elevator pitch de 60 segundos que resuma tu propuesta de valor.",
+      description: activeProcesses > 0
+        ? `Tienes ${activeProcesses} postulaciones activas. Conviene practicar una narrativa consistente para vender tu experiencia como ${mainRole}, conectando retos, decisiones tÃ©cnicas y resultados concretos.`
+        : `PrepÃ¡rate para destacar en vacantes de ${mainRole} con un elevator pitch de 60 segundos que resuma tu propuesta de valor y tus habilidades diferenciales.`,
       actionableSteps: [
-        "Practica responder la pregunta: 'Háblame de un reto técnico difícil que hayas resuelto' usando la estructura STAR.",
-        "Prepara 3 preguntas inteligentes sobre cultura de ingeniería y retos técnicos para hacerle a tus entrevistadores."
+        `Practica responder: 'CuÃ©ntame un reto clave que resolviste como ${mainRole}' usando la estructura STAR y mencionando herramientas como ${skills.slice(0, 2).join(" y ") || topSkill}.`,
+        "Prepara 3 preguntas inteligentes sobre stack, mÃ©tricas del equipo y expectativas del rol para hacerle a tus entrevistadores."
       ]
     },
     {
-      title: "Análisis inteligente del mercado y bandas salariales",
+      title: "AnÃ¡lisis inteligente del mercado y bandas salariales",
       category: "market" as const,
-      description: "El sector tecnológico está experimentando una consolidación en ofertas remotas para puestos senior y híbridas para semi-senior. Tu rango salarial esperado está bien alineado con la media de la industria.",
+      description: `Tu posicionamiento actual apunta a oportunidades de ${mainRole} con seniority ${seniority}. Conviene monitorear vacantes alineadas con ${searchFocus} para calibrar mejor salario, requisitos y competencias repetidas.`,
       actionableSteps: [
-        "Configura alertas de empleo específicas los martes y jueves por la mañana, que son los días con mayor publicación de vacantes.",
-        "Amplía tu red de contactos en LinkedIn conectando con 5 recruiters técnicos de empresas aliadas esta semana."
+        "Configura alertas de empleo especÃ­ficas los martes y jueves por la maÃ±ana, que son los dÃ­as con mayor publicaciÃ³n de vacantes.",
+        `AmplÃ­a tu red conectando con recruiters y hiring managers que publiquen posiciones relacionadas con ${mainRole} y ${topSkill} esta semana.`
       ]
     }
   ];
 }
-
 // 1. Analyze CV Endpoint
 const cvAnalyzeHandler: express.RequestHandler = async (req, res) => {
   if (!checkApiKey(res)) return;
@@ -1296,40 +1299,43 @@ INSTRUCCIONES IMPORTANTES:
 
 function getFallbackDailyRecommendation(profile: any, candidacies: any) {
   const signals = deriveProfileSignals(profile);
-  const skills = profile?.skills || [];
+  const skills = signals.normalizedSkills.length > 0 ? signals.normalizedSkills : (profile?.skills || []);
+  const mainRole = signals.primaryRole || "profesional tech";
+  const topSkill = signals.headlineSkills[0] || skills[0] || "tu stack principal";
+  const seniority = signals.seniority || profile?.preferences?.seniorityLevel || "semi-senior";
   const recentJobTitle = candidacies && candidacies.length > 0 ? candidacies[0].jobTitle : null;
 
   if (recentJobTitle) {
     return {
       title: "Optimizar CV para " + recentJobTitle,
       category: "cv" as const,
-      action: "Añadir logros cuantitativos específicos",
-      reasoning: `Has postulado o guardado el puesto de '${recentJobTitle}'. Para maximizar tu tasa de respuesta, los reclutadores buscan métricas duras en lugar de descripciones conceptuales pasivas.`,
-      specificInstruction: `En tu última experiencia laboral listada en tu perfil, añade un logro medible como: 'Logré optimizar el rendimiento de la aplicación en un 25% mediante la reestructuración de componentes React redundantes y Lazy Loading'.`,
-      marketTrend: "El 87% de los reclutadores técnicos priorizan currículums que muestran métricas de impacto comercial y optimización de recursos sobre listas de tareas."
-    };
-  } else if (skills.length > 0) {
-    const mainSkill = skills[0];
-    return {
-      title: `Especialización en ${mainSkill}`,
-      category: "skills" as const,
-      action: `Aprender una tecnología complementaria a ${mainSkill}`,
-      reasoning: `Tu perfil cuenta con habilidades fuertes en ${mainSkill}. Sin embargo, el mercado actual demanda desarrolladores con perfiles en T que dominen tecnologías complementarias en la nube y optimización de bundles.`,
-      specificInstruction: `Dedica 15 minutos hoy a leer la documentación oficial de Docker y cómo configurar un pipeline de CI/CD básico para tus proyectos creados con ${mainSkill}.`,
-      marketTrend: `Las vacantes que requieren '${mainSkill}' junto con conocimientos de 'AWS o Docker' han aumentado un 42% en el último semestre, ofreciendo salarios sustancialmente superiores.`
-    };
-  } else {
-    return {
-      title: "Optimizar perfil inicial",
-      category: "cv" as const,
-      action: "Cargar currículum vitae (CV) en PDF",
-      reasoning: "Tu perfil de TalentoMatch está actualmente vacío o incompleto. Para recibir recomendaciones hiper-personalizadas y análisis automáticos de compatibilidad, la IA necesita extraer tus experiencias reales.",
-      specificInstruction: "Dirígete a la pestaña 'Mi Perfil' y arrastra tu archivo CV actual en formato PDF o TXT para que el asistente de IA extraiga tus datos en segundos.",
-      marketTrend: "Completar el perfil profesional incrementa la probabilidad de ser contactado por un reclutador técnico en más de un 350%."
+      action: "AÃ±adir logros cuantitativos especÃ­ficos",
+      reasoning: `Tu CV ya refleja seÃ±ales de ${mainRole}. Como ademÃ¡s ya mostraste interÃ©s por '${recentJobTitle}', la mejora con mayor retorno es traducir esa experiencia en impacto medible y evidencia directa para ese tipo de vacante.`,
+      specificInstruction: `Reescribe tu experiencia mÃ¡s cercana a ${recentJobTitle} con una fÃ³rmula de impacto: 'Como ${mainRole}, utilicÃ© ${topSkill} para resolver [problema], logrando [mÃ©trica concreta] en [tiempo o alcance]'.`,
+      marketTrend: "Los reclutadores tÃ©cnicos siguen priorizando CVs que conectan herramientas, contexto e impacto medible sobre descripciones genÃ©ricas de responsabilidades."
     };
   }
-}
 
+  if (skills.length > 0) {
+    return {
+      title: `EspecializaciÃ³n en ${topSkill}`,
+      category: "skills" as const,
+      action: `Aprender una capacidad complementaria a ${topSkill}`,
+      reasoning: `Tus seÃ±ales de CV apuntan a un perfil ${seniority} con base en ${mainRole}. Para competir mejor, conviene complementar ${topSkill} con una capacidad adyacente que aparezca repetidamente en vacantes reales de tu ruta objetivo.`,
+      specificInstruction: `Dedica hoy 15 minutos a documentar una mini evidencia de ${topSkill} aplicada a un caso real y luego define quÃ© complemento te falta para tu siguiente nivel: Docker, pruebas automatizadas, cloud o bases de datos.`,
+      marketTrend: `Las vacantes para perfiles ${mainRole} con stack principal en ${topSkill} suelen premiar a quienes demuestran combinaciÃ³n entre especialidad tÃ©cnica y capacidad de entrega completa.`
+    };
+  }
+
+  return {
+    title: "Optimizar perfil inicial",
+    category: "cv" as const,
+    action: "Cargar currículum vitae (CV) en PDF",
+    reasoning: "Tu perfil de TalentoMatch está actualmente vacío o incompleto. Para recibir recomendaciones hiper-personalizadas y análisis automáticos de compatibilidad, la IA necesita extraer tus experiencias reales.",
+    specificInstruction: "Dirígete a la pestaña 'Mi Perfil' y arrastra tu archivo CV actual en formato PDF o TXT para que el asistente de IA extraiga tus datos en segundos.",
+    marketTrend: "Completar el perfil profesional incrementa la probabilidad de ser contactado por un reclutador técnico en más de un 350%."
+  }
+}
 // 2.5. AI Daily Recommendation Endpoint
 const jobsDailyRecommendationHandler: express.RequestHandler = async (req, res) => {
   if (!checkApiKey(res)) return;
@@ -1409,20 +1415,26 @@ function getFallbackSalaryComparison(profile: any, candidacies: any) {
   const userCurrency = profile?.preferences?.desiredSalaryRange?.currency || "USD";
   const userMinSalary = profile?.preferences?.desiredSalaryRange?.min || 1500;
   const userMaxSalary = profile?.preferences?.desiredSalaryRange?.max || 4000;
-
-  const roles = candidacies && candidacies.length > 0 
+  const signals = deriveProfileSignals(profile);
+  const baseSkills = signals.headlineSkills.length > 0 ? signals.headlineSkills : (profile?.skills || []);
+  const derivedRoles = (candidacies && candidacies.length > 0
     ? candidacies.slice(0, 3).map((c: any) => c.jobTitle)
-    : ["Desarrollador Frontend", "Fullstack Developer"];
+    : [
+        signals.primaryRole,
+        signals.recentRoles[0],
+        baseSkills[0] ? `${signals.primaryRole || "Especialista"} ${baseSkills[0]}` : null
+      ]).filter(Boolean) as string[];
+  const effectiveCountry = signals.residentCountry || userCountry;
+  const effectiveSeniority = signals.seniority || userSeniority;
 
-  // Generate realistic averages based on seniority
-  let multiplier = 1.0;
-  if (userSeniority === 'junior' || userSeniority === 'trainee') multiplier = 0.6;
-  if (userSeniority === 'senior') multiplier = 1.8;
+  let derivedMultiplier = 1.0;
+  if (effectiveSeniority === "junior" || effectiveSeniority === "trainee") derivedMultiplier = 0.6;
+  if (effectiveSeniority === "senior") derivedMultiplier = 1.8;
 
-  const mappedRoles = roles.map((role: string) => {
-    const avg = Math.round(2500 * multiplier);
-    const min = Math.round(1800 * multiplier);
-    const max = Math.round(3800 * multiplier);
+  const derivedMappedRoles = derivedRoles.map((role: string) => {
+    const avg = Math.round(2500 * derivedMultiplier);
+    const min = Math.round(1800 * derivedMultiplier);
+    const max = Math.round(3800 * derivedMultiplier);
     const isWithin = userMinSalary >= min && userMinSalary <= max;
 
     return {
@@ -1431,27 +1443,27 @@ function getFallbackSalaryComparison(profile: any, candidacies: any) {
       marketMaxSalary: max,
       marketAverageSalary: avg,
       currency: userCurrency,
-      sourceCountry: userCountry,
+      sourceCountry: effectiveCountry,
       confidence: "media",
-      insight: isWithin 
-        ? `Tu rango salarial deseado (${userMinSalary} - ${userMaxSalary} ${userCurrency}) está perfectamente alineado con los promedios del mercado para un ${role} ${userSeniority} en ${userCountry}.`
-        : `Tu salario mínimo solicitado (${userMinSalary} ${userCurrency}) está ligeramente ${userMinSalary < min ? 'por debajo' : 'por encima'} de los rangos típicos para ${role} ${userSeniority} en ${userCountry} (${min} - ${max} ${userCurrency}).`
+      insight: isWithin
+        ? `Tu rango salarial deseado (${userMinSalary} - ${userMaxSalary} ${userCurrency}) estÃ¡ alineado con el mercado para un ${role} ${effectiveSeniority} en ${effectiveCountry}.`
+        : `Tu salario mÃ­nimo solicitado (${userMinSalary} ${userCurrency}) estÃ¡ ${userMinSalary < min ? "por debajo" : "por encima"} de los rangos tÃ­picos para ${role} ${effectiveSeniority} en ${effectiveCountry} (${min} - ${max} ${userCurrency}).`
     };
   });
 
-  const overallAvg = mappedRoles.reduce((acc: number, r: any) => acc + r.marketAverageSalary, 0) / mappedRoles.length;
-  const isUserRangeRealistic = userMinSalary <= overallAvg * 1.2;
+  const derivedOverallAvg = derivedMappedRoles.reduce((acc: number, r: any) => acc + r.marketAverageSalary, 0) / derivedMappedRoles.length;
+  const derivedIsRealistic = userMinSalary <= derivedOverallAvg * 1.2;
 
   return {
-    roles: mappedRoles,
+    roles: derivedMappedRoles,
     overallComparison: {
-      isUserRangeRealistic,
-      analysisText: `Basado en el perfil para ${userCountry} con seniority ${userSeniority}, tus expectativas salariales (${userMinSalary} - ${userMaxSalary} ${userCurrency}) son ${isUserRangeRealistic ? 'muy realistas y competitivas' : 'altas respecto a los promedios locales'}. La demanda de perfiles con tus habilidades (${profile?.skills?.slice(0, 4).join(", ") || "React, TypeScript"}) se mantiene estable, lo que te posiciona favorablemente para negociar ofertas en este rango.`,
+      isUserRangeRealistic: derivedIsRealistic,
+      analysisText: `Basado en tus seÃ±ales de CV para ${effectiveCountry} como perfil ${effectiveSeniority} orientado a ${signals.primaryRole || "tecnologia"}, tus expectativas salariales (${userMinSalary} - ${userMaxSalary} ${userCurrency}) son ${derivedIsRealistic ? "muy realistas y competitivas" : "altas respecto a los promedios locales"}. La combinaciÃ³n de ${baseSkills.slice(0, 4).join(", ") || "habilidades tecnicas clave"} te posiciona mejor cuando el rol exige especialidad mÃ¡s capacidad de ejecuciÃ³n integral.`,
       negotiationTactics: [
-        `Enfócate en tu dominio de habilidades críticas como ${profile?.skills?.slice(0, 3).join(", ") || "desarrollo web"} al discutir compensaciones.`,
-        "Propón un esquema de revisión salarial a los 6 meses si la oferta inicial está ligeramente por debajo de tu expectativa.",
-        "Considera el paquete de beneficios totales (trabajo 100% remoto, días libres, bonos anuales) como parte de tu compensación global.",
-        "Destaca tus proyectos prácticos o historial de postulaciones activas para mostrar que eres un candidato en alta demanda."
+        `EnfÃ³cate en tu dominio de habilidades crÃ­ticas como ${baseSkills.slice(0, 3).join(", ") || "desarrollo web"} al discutir compensaciones.`,
+        "PropÃ³n un esquema de revisiÃ³n salarial a los 6 meses si la oferta inicial estÃ¡ ligeramente por debajo de tu expectativa.",
+        "Considera el paquete de beneficios totales (trabajo 100% remoto, dÃ­as libres, bonos anuales) como parte de tu compensaciÃ³n global.",
+        `Destaca evidencias concretas de impacto en roles cercanos a ${signals.primaryRole || "tu especialidad"} para demostrar por quÃ© tu rango estÃ¡ sustentado.`
       ]
     },
     groundingSources: [
@@ -1460,44 +1472,45 @@ function getFallbackSalaryComparison(profile: any, candidacies: any) {
     ]
   };
 }
-
 // 2.6. AI Salary Comparison and Market Trend Endpoint
 const jobsSalaryComparisonHandler: express.RequestHandler = async (req, res) => {
   if (!checkApiKey(res)) return;
 
   const { profile, candidacies } = req.body;
+  const signals = deriveProfileSignals(profile);
 
   try {
-    const userCountry = profile?.preferences?.residentCountry || "Latinoamérica";
-    const userSeniority = profile?.preferences?.seniorityLevel || "cualquiera";
+    const userCountry = signals.residentCountry || profile?.preferences?.residentCountry || "Latinoamerica";
+    const userSeniority = signals.seniority || profile?.preferences?.seniorityLevel || "cualquiera";
     const userMinSalary = profile?.preferences?.desiredSalaryRange?.min || 1500;
     const userMaxSalary = profile?.preferences?.desiredSalaryRange?.max || 4000;
     const userCurrency = profile?.preferences?.desiredSalaryRange?.currency || "USD";
 
-    const rolesToSearch = candidacies && candidacies.length > 0 
+    const rolesToSearch = candidacies && candidacies.length > 0
       ? candidacies.slice(0, 3).map((c: any) => c.jobTitle)
-      : (profile?.skills && profile.skills.length > 0 ? [`Desarrollador ${profile.skills[0]}`] : ["Desarrollador de Software"]);
+      : [signals.primaryRole, signals.recentRoles[0], signals.searchQueries[0]].filter(Boolean);
 
     const response = await ai.models.generateContent({
       model: "gemini-3.6-flash",
-      contents: `Busca y analiza los rangos salariales promedio actuales para los siguientes puestos de tecnología: ${rolesToSearch.join(", ")}.
-      Filtra la búsqueda para el país de residencia del usuario: ${userCountry}, y el nivel de seniority: ${userSeniority}.
+      contents: `Busca y analiza los rangos salariales promedio actuales para los siguientes puestos de tecnologia: ${rolesToSearch.join(", ")}.
+      Filtra la busqueda para el pais de residencia del usuario: ${userCountry}, y el nivel de seniority: ${userSeniority}.
       Compara estos promedios con el rango salarial deseado por el usuario, que es de: ${userMinSalary} a ${userMaxSalary} ${userCurrency} al mes.
+      Contexto estructurado del CV: ${signals.summary || "Sin senales estructuradas suficientes"}.
 
       Proporciona una respuesta detallada en formato JSON que contenga:
-      1. 'roles': Una lista de análisis para cada uno de los puestos, incluyendo:
-         - 'roleTitle': El título del puesto.
-         - 'marketMinSalary': El salario mensual mínimo estimado del mercado para este rol en ${userCountry} (en ${userCurrency}, convierte de moneda local si es necesario, asumiendo tasas de conversión estándar actuales si aplica).
-         - 'marketMaxSalary': El salario mensual máximo estimado del mercado.
+      1. 'roles': Una lista de analisis para cada uno de los puestos, incluyendo:
+         - 'roleTitle': El titulo del puesto.
+         - 'marketMinSalary': El salario mensual minimo estimado del mercado para este rol en ${userCountry} (en ${userCurrency}, convierte de moneda local si es necesario, asumiendo tasas de conversion estandar actuales si aplica).
+         - 'marketMaxSalary': El salario mensual maximo estimado del mercado.
          - 'marketAverageSalary': El salario mensual promedio estimado.
          - 'currency': La moneda en la que se expresan los montos (preferiblemente ${userCurrency}).
-         - 'sourceCountry': El país de referencia (${userCountry}).
+         - 'sourceCountry': El pais de referencia (${userCountry}).
          - 'confidence': El nivel de certeza de los datos de mercado encontrados ("alta", "media" o "baja").
-         - 'insight': Comentarios amigables comparando el rango del usuario con los hallazgos reales del mercado (ej. si su salario deseado está por encima, por debajo, o alineado con la realidad).
-      2. 'overallComparison': Un objeto de comparación general con:
+         - 'insight': Comentarios amigables comparando el rango del usuario con los hallazgos reales del mercado.
+      2. 'overallComparison': Un objeto de comparacion general con:
          - 'isUserRangeRealistic': Un valor booleano indicando si la expectativa salarial del usuario es realista o competitiva.
-         - 'analysisText': Un párrafo explicativo exhaustivo sobre cómo encajan sus expectativas en el ecosistema laboral actual.
-         - 'negotiationTactics': 3 o 4 consejos de negociación táctica específicos para sus roles y perfil de habilidades (${profile?.skills?.join(", ") || "tecnología"}).`,
+         - 'analysisText': Un parrafo explicativo exhaustivo sobre como encajan sus expectativas en el ecosistema laboral actual.
+         - 'negotiationTactics': 3 o 4 consejos de negociacion tactica especificos para sus roles y perfil de habilidades (${signals.normalizedSkills.join(", ") || profile?.skills?.join(", ") || "tecnologia"}).`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -1541,22 +1554,21 @@ const jobsSalaryComparisonHandler: express.RequestHandler = async (req, res) => 
 
     const resultText = response.text;
     if (!resultText) {
-      throw new Error("No se obtuvo respuesta de comparación salarial de la IA");
+      throw new Error("No se obtuvo respuesta de comparacion salarial de la IA");
     }
 
     const payload = JSON.parse(resultText.trim());
 
-    // Extract grounding sources to send back to client
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    const groundingSources = chunks 
+    const groundingSources = chunks
       ? chunks.map((chunk: any) => ({
-          title: chunk.web?.title || "Fuente de búsqueda de Google",
+          title: chunk.web?.title || "Fuente de busqueda de Google",
           url: chunk.web?.uri || ""
         })).filter((source: any) => source.url)
       : [];
 
-    payload.groundingSources = groundingSources.length > 0 
-      ? groundingSources 
+    payload.groundingSources = groundingSources.length > 0
+      ? groundingSources
       : [
           { title: `Tendencias salariales para ${rolesToSearch[0]} en ${userCountry}`, url: `https://www.google.com/search?q=salario+promedio+${encodeURIComponent(rolesToSearch[0])}+${encodeURIComponent(userCountry)}` }
         ];
@@ -2069,22 +2081,26 @@ const goalsQuizHandler: express.RequestHandler = async (req, res) => {
   if (!checkApiKey(res)) return;
 
   const { title, description, profile } = req.body;
+  const signals = deriveProfileSignals(profile);
   if (!title) {
-    return res.status(400).json({ error: "No se proporcionó el título de la meta" });
+    return res.status(400).json({ error: "No se proporciono el titulo de la meta" });
   }
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3.6-flash",
-      contents: `Genera un breve cuestionario técnico/conceptual de opción múltiple con exactamente 3 preguntas en español para validar y evaluar los conocimientos del usuario respecto a la meta de desarrollo profesional: "${title}".
-Descripción de la meta: "${description}".
+      contents: `Genera un breve cuestionario tecnico/conceptual de opcion multiple con exactamente 3 preguntas en espanol para validar y evaluar los conocimientos del usuario respecto a la meta de desarrollo profesional: "${title}".
+Descripcion de la meta: "${description}".
+Senales estructuradas del CV del usuario: ${signals.summary || "Sin senales suficientes"}.
+Rol principal inferido: ${signals.primaryRole || "No identificado"}.
+Habilidades destacadas: ${signals.headlineSkills.join(", ") || "No identificadas"}.
 
-Cada pregunta debe medir si la persona comprende los conceptos o las mejores prácticas de esta área específica.
+Cada pregunta debe medir si la persona comprende los conceptos o las mejores practicas de esta area especifica y, cuando aplique, aterrizar la dificultad al stack y seniority del perfil.
 Proporciona exactamente 3 preguntas. Para cada pregunta, define:
 1. La pregunta clara y desafiante ("question").
 2. Un arreglo de exactamente 4 opciones de respuesta realistas ("options"). No uses opciones absurdas.
-3. El índice (0, 1, 2 o 3) de la opción correcta ("correctIndex").
-4. Una explicación pedagógica y constructiva de por qué esa opción es la correcta ("explanation").`,
+3. El indice (0, 1, 2 o 3) de la opcion correcta ("correctIndex").
+4. Una explicacion pedagogica y constructiva de por que esa opcion es la correcta.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -2105,7 +2121,7 @@ Proporciona exactamente 3 preguntas. Para cada pregunta, define:
                 },
                 required: ["question", "options", "correctIndex", "explanation"]
               },
-              description: "Lista de exactamente 3 preguntas de opción múltiple para evaluar los conocimientos del tema"
+              description: "Lista de exactamente 3 preguntas de opcion multiple para evaluar los conocimientos del tema"
             }
           },
           required: ["questions"]
@@ -2513,4 +2529,6 @@ export {
   interviewTechnicalQuestionsHandler,
   interviewTechnicalEvaluateHandler,
 };
+
+
 
