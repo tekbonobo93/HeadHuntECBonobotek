@@ -953,39 +953,112 @@ function extractRequirements(description: string, fallbackTerms: string[] = []) 
 }
 
 function calculateCompatibility(candidate: RealJobSearchCandidate, profile: any, preferences: any) {
-  let score = 55;
+  let score = 28;
   const reasons: string[] = [];
-  const profileSkills = (profile?.skills || []).map((skill: string) => skill.toLowerCase());
+  const signals = deriveProfileSignals(profile);
+  const profileSkills = (signals.normalizedSkills.length > 0 ? signals.normalizedSkills : (profile?.skills || []))
+    .map((skill: string) => skill.toLowerCase());
+  const recentRoles = (signals.recentRoles || []).map((role) => role.toLowerCase());
+  const roleSignals = [signals.primaryRole, ...signals.recentRoles]
+    .filter(Boolean)
+    .map((value) => value!.toLowerCase());
   const requirements = candidate.requirements.map((item) => item.toLowerCase());
+  const title = candidate.title.toLowerCase();
+  const description = candidate.description.toLowerCase();
+  const titleAndDescription = `${title} ${description}`;
 
-  const matchingSkills = requirements.filter((requirement) =>
-    profileSkills.some((skill: string) => skill.includes(requirement) || requirement.includes(skill)),
+  const unrelatedRoleMarkers = [
+    "video editor",
+    "cinematic",
+    "videographer",
+    "motion graphics",
+    "3d artist",
+    "graphic designer",
+    "ux writer",
+    "copywriter",
+    "community manager",
+    "sales",
+    "marketing",
+    "recruiter",
+    "account executive",
+  ];
+  const hasUnrelatedRoleMarker = unrelatedRoleMarkers.some((marker) => titleAndDescription.includes(marker));
+
+  const roleKeywordTokens = roleSignals
+    .flatMap((role) => role.split(/[^a-z0-9]+/))
+    .filter((token) => token.length >= 4 && !["engineer", "developer", "systems"].includes(token));
+  const roleMatches = roleKeywordTokens.filter((token) => titleAndDescription.includes(token));
+
+  const exactSkillMatches = profileSkills.filter((skill) =>
+    skill.length >= 3 && titleAndDescription.includes(skill),
   );
 
+  const matchingSkills = requirements.filter((requirement) =>
+    profileSkills.some((skill: string) => {
+      if (skill.length < 3 || requirement.length < 3) {
+        return false;
+      }
+      return skill === requirement || requirement.includes(skill) || skill.includes(requirement);
+    }),
+  );
+
+  if (roleMatches.length > 0) {
+    score += Math.min(24, roleMatches.length * 8);
+    reasons.push(`rol alineado con ${roleMatches.slice(0, 3).join(", ")}`);
+  }
+
   if (matchingSkills.length > 0) {
-    score += Math.min(25, matchingSkills.length * 6);
-    reasons.push(`coincidencias técnicas en ${matchingSkills.slice(0, 3).join(", ")}`);
+    score += Math.min(26, matchingSkills.length * 5);
+    reasons.push(`coincidencias tecnicas en ${matchingSkills.slice(0, 3).join(", ")}`);
+  }
+
+  if (exactSkillMatches.length > 0) {
+    score += Math.min(18, exactSkillMatches.length * 4);
+    reasons.push(`stack visible en ${exactSkillMatches.slice(0, 3).join(", ")}`);
+  }
+
+  const hasStrongRoleEvidence = roleMatches.length > 0 || recentRoles.some((role) => title.includes(role));
+  const hasStrongSkillEvidence = matchingSkills.length >= 2 || exactSkillMatches.length >= 2;
+
+  if (!hasStrongRoleEvidence && !hasStrongSkillEvidence) {
+    score -= 22;
+    reasons.push("rol poco relacionado con tu experiencia principal");
+  }
+
+  if (hasUnrelatedRoleMarker && !hasStrongRoleEvidence) {
+    score -= 30;
+    reasons.push("dominio profesional distinto al de tu CV");
   }
 
   const preferredLocationType = preferences?.locationType || "cualquiera";
   if (preferredLocationType === "cualquiera" || preferredLocationType === candidate.locationType) {
-    score += 12;
+    score += 8;
     reasons.push(`modalidad ${candidate.locationType}`);
   }
 
   const preferredJobType = preferences?.jobType || "cualquiera";
   if (preferredJobType === "cualquiera" || preferredJobType === candidate.jobType) {
-    score += 8;
+    score += 5;
     reasons.push(`jornada ${candidate.jobType}`);
   }
 
   const expectedSeniority = preferences?.seniorityLevel || "cualquiera";
   if (expectedSeniority === "cualquiera" || expectedSeniority === candidate.seniorityLevel) {
-    score += 10;
+    score += 7;
     reasons.push(`seniority ${candidate.seniorityLevel}`);
+  } else if (expectedSeniority !== "cualquiera") {
+    score -= 8;
   }
 
-  score = Math.max(45, Math.min(98, score));
+  if (!hasStrongRoleEvidence && matchingSkills.length <= 1) {
+    score = Math.min(score, 54);
+  }
+
+  if (hasUnrelatedRoleMarker && !hasStrongRoleEvidence) {
+    score = Math.min(score, 35);
+  }
+
+  score = Math.max(15, Math.min(98, score));
   return {
     compatibilityScore: score,
     compatibilityAnalysis: reasons.length > 0
