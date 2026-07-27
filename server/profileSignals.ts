@@ -24,10 +24,14 @@ export interface ProfileSignals {
   recentRoles: string[];
   normalizedSkills: string[];
   headlineSkills: string[];
+  coreSkillSet: string[];
   seniority: string;
   locationType: string;
   residentCountry: string | null;
   geographicScope: string;
+  careerFamily: string;
+  allowedRoleKeywords: string[];
+  blockedRoleKeywords: string[];
   searchQueries: string[];
   summary: string;
 }
@@ -53,92 +57,216 @@ const COMMON_SKILL_ALIASES: Record<string, string[]> = {
   figma: ["figma"],
 };
 
+const CAREER_FAMILY_CONFIG: Record<string, { roleKeywords: string[]; skillKeywords: string[]; blockedKeywords: string[]; roleVariants: string[]; defaultRole: string | null }> = {
+  infrastructure: {
+    roleKeywords: [
+      "sysadmin",
+      "system administrator",
+      "administrador de sistemas",
+      "systems administrator",
+      "infrastructure",
+      "infraestructura",
+      "network administrator",
+      "soporte tecnico",
+      "it support",
+      "linux administrator",
+      "windows server",
+    ],
+    skillKeywords: [
+      "linux",
+      "active directory",
+      "dns",
+      "dhcp",
+      "nginx",
+      "apache",
+      "vmware",
+      "proxmox",
+      "firewall",
+      "redes",
+      "servidores",
+    ],
+    blockedKeywords: ["video editor", "cinematic", "videographer", "motion graphics", "graphic designer", "copywriter", "sales", "marketing"],
+    roleVariants: ["System Administrator", "Linux Administrator", "Infrastructure Engineer", "Network Administrator"],
+    defaultRole: "System Administrator",
+  },
+  devops: {
+    roleKeywords: ["devops", "site reliability", "sre", "platform engineer", "cloud engineer", "cloud architect"],
+    skillKeywords: ["docker", "kubernetes", "terraform", "aws", "azure", "gcp", "ci/cd", "ansible", "helm"],
+    blockedKeywords: ["video editor", "cinematic", "videographer", "motion graphics", "graphic designer", "copywriter", "sales", "marketing"],
+    roleVariants: ["DevOps Engineer", "Site Reliability Engineer", "Cloud Engineer", "Platform Engineer"],
+    defaultRole: "DevOps Engineer",
+  },
+  backend: {
+    roleKeywords: ["backend", "api", "server", "software engineer", "fullstack", "full stack"],
+    skillKeywords: ["node", "postgresql", "python", "java", "sql", "rest", "graphql"],
+    blockedKeywords: ["video editor", "cinematic", "videographer", "motion graphics", "graphic designer", "copywriter", "sales", "marketing"],
+    roleVariants: ["Backend Engineer", "Software Engineer", "Fullstack Engineer"],
+    defaultRole: "Backend Engineer",
+  },
+  frontend: {
+    roleKeywords: ["frontend", "front end", "ui engineer", "web developer", "react developer"],
+    skillKeywords: ["react", "typescript", "javascript", "nextjs", "css", "html"],
+    blockedKeywords: ["video editor", "cinematic", "videographer", "motion graphics", "graphic designer", "copywriter", "sales", "marketing"],
+    roleVariants: ["Frontend Engineer", "React Developer", "Web Developer"],
+    defaultRole: "Frontend Engineer",
+  },
+  design: {
+    roleKeywords: ["product designer", "ux", "ui", "designer", "figma"],
+    skillKeywords: ["figma", "prototype", "design system"],
+    blockedKeywords: ["sales", "marketing"],
+    roleVariants: ["Product Designer", "UX Designer", "UI Designer"],
+    defaultRole: "Product Designer",
+  },
+  general: {
+    roleKeywords: [],
+    skillKeywords: [],
+    blockedKeywords: ["video editor", "cinematic", "videographer", "motion graphics", "graphic designer", "copywriter", "sales", "marketing"],
+    roleVariants: [],
+    defaultRole: null,
+  },
+};
+
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 function normalizeSkill(skill: string) {
-  const raw = skill.trim().toLowerCase();
+  const raw = normalizeText(skill);
   for (const [canonical, aliases] of Object.entries(COMMON_SKILL_ALIASES)) {
-    if (aliases.some((alias) => raw === alias || raw.includes(alias))) {
+    if (aliases.some((alias) => raw === normalizeText(alias) || raw.includes(normalizeText(alias)))) {
       return canonical;
     }
   }
   return raw;
 }
 
-function inferRoleFromSkills(skills: string[]) {
-  const normalized = skills.map(normalizeSkill);
-  if (normalized.some((skill) => ["linux", "docker", "kubernetes", "terraform", "aws", "azure", "gcp", "devops", "sre"].includes(skill))) {
-    return "DevOps Engineer";
-  }
-  if (normalized.some((skill) => ["react", "typescript", "javascript", "nextjs"].includes(skill))) {
-    return "Frontend Engineer";
-  }
-  if (normalized.some((skill) => ["node", "postgresql", "python", "java"].includes(skill))) {
-    return "Backend Engineer";
-  }
-  if (normalized.includes("figma")) {
-    return "Product Designer";
-  }
-  return null;
+function scoreCareerFamily(roles: string[], skills: string[], family: keyof typeof CAREER_FAMILY_CONFIG) {
+  const config = CAREER_FAMILY_CONFIG[family];
+  const roleScore = config.roleKeywords.reduce((total, keyword) => (
+    total + (roles.some((role) => role.includes(normalizeText(keyword))) ? 3 : 0)
+  ), 0);
+  const skillScore = config.skillKeywords.reduce((total, keyword) => (
+    total + (skills.some((skill) => skill.includes(normalizeText(keyword))) ? 2 : 0)
+  ), 0);
+  return roleScore + skillScore;
 }
 
-function buildQueries(primaryRole: string | null, skills: string[], seniority: string, country: string | null) {
-  const headline = skills.slice(0, 4);
+function inferCareerFamily(roles: string[], skills: string[]) {
+  const rankedFamilies = (Object.keys(CAREER_FAMILY_CONFIG) as Array<keyof typeof CAREER_FAMILY_CONFIG>)
+    .filter((family) => family !== "general")
+    .map((family) => ({ family, score: scoreCareerFamily(roles, skills, family) }))
+    .sort((a, b) => b.score - a.score);
+
+  return rankedFamilies[0] && rankedFamilies[0].score > 0 ? rankedFamilies[0].family : "general";
+}
+
+function inferPrimaryRole(careerFamily: string, recentRoles: string[]) {
+  if (recentRoles.length > 0) {
+    return recentRoles[0];
+  }
+  return CAREER_FAMILY_CONFIG[careerFamily]?.defaultRole || null;
+}
+
+function buildQueries(
+  primaryRole: string | null,
+  recentRoles: string[],
+  coreSkills: string[],
+  seniority: string,
+  country: string | null,
+  careerFamily: string,
+  explicitQuery?: string | null,
+) {
+  const familyConfig = CAREER_FAMILY_CONFIG[careerFamily] || CAREER_FAMILY_CONFIG.general;
   const queries: string[] = [];
+  const normalizedExplicitQuery = explicitQuery?.trim();
+
+  if (normalizedExplicitQuery && normalizedExplicitQuery.length >= 3) {
+    queries.push(normalizedExplicitQuery);
+  }
 
   if (primaryRole) {
     queries.push(primaryRole);
-    if (headline.length > 0) {
-      queries.push(`${primaryRole} ${headline.slice(0, 2).join(" ")}`);
-    }
     if (country) {
       queries.push(`${primaryRole} ${country}`);
     }
+    if (coreSkills.length > 0) {
+      queries.push(`${primaryRole} ${coreSkills.slice(0, 2).join(" ")}`);
+    }
+    if (seniority !== "cualquiera") {
+      queries.push(`${seniority} ${primaryRole}`);
+    }
   }
 
-  if (headline.length >= 2) {
-    queries.push(`${headline[0]} ${headline[1]}`);
-  }
-  if (headline.length >= 3) {
-    queries.push(headline.slice(0, 3).join(" "));
-  }
-
-  if (seniority !== "cualquiera" && primaryRole) {
-    queries.push(`${seniority} ${primaryRole}`);
+  for (const role of recentRoles.slice(0, 3)) {
+    queries.push(role);
+    if (country) {
+      queries.push(`${role} ${country}`);
+    }
   }
 
-  return uniqueStrings(queries.map((item) => item.trim()).filter((item) => item.length >= 3)).slice(0, 6);
+  for (const variant of familyConfig.roleVariants.slice(0, 3)) {
+    queries.push(variant);
+    if (country) {
+      queries.push(`${variant} ${country}`);
+    }
+  }
+
+  if (!primaryRole && coreSkills.length > 0) {
+    queries.push(coreSkills.slice(0, 2).join(" "));
+  }
+
+  return uniqueStrings(
+    queries
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 3),
+  ).slice(0, 8);
 }
 
 export function deriveProfileSignals(profile: ProfileLike | undefined, explicitQuery?: string | null): ProfileSignals {
   const experience = Array.isArray(profile?.experience) ? profile!.experience : [];
   const recentRoles = uniqueStrings(
     experience
-      .map((item) => (item.role || "").trim())
+      .map((item) => normalizeText(item.role || ""))
       .filter((item) => item.length > 0),
   );
 
   const normalizedSkills = uniqueStrings((profile?.skills || []).map(normalizeSkill));
   const headlineSkills = normalizedSkills.slice(0, 6);
-  const primaryRole = recentRoles[0] || inferRoleFromSkills(headlineSkills);
+  const coreSkillSet = normalizedSkills.slice(0, 4);
+  const careerFamily = inferCareerFamily(recentRoles, normalizedSkills);
+  const primaryRole = inferPrimaryRole(careerFamily, recentRoles);
+  const familyConfig = CAREER_FAMILY_CONFIG[careerFamily] || CAREER_FAMILY_CONFIG.general;
   const seniority = profile?.preferences?.seniorityLevel || "cualquiera";
   const locationType = profile?.preferences?.locationType || "cualquiera";
   const residentCountry = profile?.preferences?.residentCountry?.trim() || null;
   const geographicScope = profile?.preferences?.geographicScope || "global";
 
-  const queries = explicitQuery && explicitQuery.trim().length > 0
-    ? [explicitQuery.trim(), ...buildQueries(primaryRole, headlineSkills, seniority, residentCountry)]
-    : buildQueries(primaryRole, headlineSkills, seniority, residentCountry);
+  const searchQueries = buildQueries(
+    primaryRole,
+    recentRoles,
+    coreSkillSet,
+    seniority,
+    residentCountry,
+    careerFamily,
+    explicitQuery,
+  );
 
   const summaryParts = [
     primaryRole ? `Rol principal: ${primaryRole}` : null,
-    headlineSkills.length > 0 ? `Skills clave: ${headlineSkills.join(", ")}` : null,
+    careerFamily !== "general" ? `Familia profesional: ${careerFamily}` : null,
+    coreSkillSet.length > 0 ? `Skills clave: ${coreSkillSet.join(", ")}` : null,
     seniority !== "cualquiera" ? `Seniority objetivo: ${seniority}` : null,
     locationType !== "cualquiera" ? `Modalidad preferida: ${locationType}` : null,
-    residentCountry ? `País de residencia: ${residentCountry}` : null,
-    geographicScope ? `Alcance geográfico: ${geographicScope}` : null,
+    residentCountry ? `Pais de residencia: ${residentCountry}` : null,
+    geographicScope ? `Alcance geografico: ${geographicScope}` : null,
   ].filter(Boolean);
 
   return {
@@ -146,11 +274,15 @@ export function deriveProfileSignals(profile: ProfileLike | undefined, explicitQ
     recentRoles,
     normalizedSkills,
     headlineSkills,
+    coreSkillSet,
     seniority,
     locationType,
     residentCountry,
     geographicScope,
-    searchQueries: uniqueStrings(queries).slice(0, 6),
+    careerFamily,
+    allowedRoleKeywords: uniqueStrings([primaryRole || "", ...recentRoles, ...familyConfig.roleVariants].filter(Boolean)),
+    blockedRoleKeywords: familyConfig.blockedKeywords,
+    searchQueries: uniqueStrings(searchQueries).slice(0, 8),
     summary: summaryParts.join(" | "),
   };
 }

@@ -952,109 +952,167 @@ function extractRequirements(description: string, fallbackTerms: string[] = []) 
   return unique.slice(0, 6).map((item) => item.toUpperCase() === item ? item : item.replace(/\b\w/g, (char) => char.toUpperCase()));
 }
 
-function calculateCompatibility(candidate: RealJobSearchCandidate, profile: any, preferences: any) {
-  let score = 28;
-  const reasons: string[] = [];
-  const signals = deriveProfileSignals(profile);
-  const profileSkills = (signals.normalizedSkills.length > 0 ? signals.normalizedSkills : (profile?.skills || []))
-    .map((skill: string) => skill.toLowerCase());
-  const recentRoles = (signals.recentRoles || []).map((role) => role.toLowerCase());
-  const roleSignals = [signals.primaryRole, ...signals.recentRoles]
-    .filter(Boolean)
-    .map((value) => value!.toLowerCase());
-  const requirements = candidate.requirements.map((item) => item.toLowerCase());
-  const title = candidate.title.toLowerCase();
-  const description = candidate.description.toLowerCase();
-  const titleAndDescription = `${title} ${description}`;
+function normalizeSearchText(value: string | undefined) {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
-  const unrelatedRoleMarkers = [
-    "video editor",
-    "cinematic",
-    "videographer",
-    "motion graphics",
-    "3d artist",
-    "graphic designer",
-    "ux writer",
-    "copywriter",
-    "community manager",
-    "sales",
-    "marketing",
-    "recruiter",
-    "account executive",
-  ];
-  const hasUnrelatedRoleMarker = unrelatedRoleMarkers.some((marker) => titleAndDescription.includes(marker));
+interface JobProfileEvidence {
+  roleHits: string[];
+  rolePhraseHits: string[];
+  titleRoleHits: string[];
+  requirementSkillHits: string[];
+  bodySkillHits: string[];
+  exactSkillMatches: string[];
+  blockedMatch: boolean;
+  hasStrongRoleEvidence: boolean;
+  hasStrongSkillEvidence: boolean;
+  locationMatches: boolean;
+  jobTypeMatches: boolean;
+  seniorityMatches: boolean;
+  domainFitScore: number;
+  preferenceFitScore: number;
+}
 
-  const roleKeywordTokens = roleSignals
-    .flatMap((role) => role.split(/[^a-z0-9]+/))
-    .filter((token) => token.length >= 4 && !["engineer", "developer", "systems"].includes(token));
-  const roleMatches = roleKeywordTokens.filter((token) => titleAndDescription.includes(token));
+function evaluateJobProfileEvidence(
+  job: RealJobSearchCandidate,
+  signals: ReturnType<typeof deriveProfileSignals>,
+  preferences: any,
+): JobProfileEvidence {
+  const jobTitle = normalizeSearchText(job.title);
+  const jobDescription = normalizeSearchText(job.description);
+  const jobRequirements = job.requirements.map((item) => normalizeSearchText(item));
+  const jobText = normalizeSearchText(`${job.title} ${job.description} ${job.requirements.join(" ")} ${job.company}`);
 
-  const exactSkillMatches = profileSkills.filter((skill) =>
-    skill.length >= 3 && titleAndDescription.includes(skill),
-  );
+  const rolePhrases = signals.allowedRoleKeywords
+    .map((keyword) => normalizeSearchText(keyword))
+    .filter((keyword) => keyword.length >= 4);
+  const roleTokens = rolePhrases
+    .flatMap((keyword) => keyword.split(/[^a-z0-9]+/))
+    .filter((token) => token.length >= 4 && !["engineer", "developer", "administrator", "systems"].includes(token));
+  const profileSkills = signals.normalizedSkills
+    .map((skill) => normalizeSearchText(skill))
+    .filter((skill) => skill.length >= 3);
+  const coreSkills = signals.coreSkillSet
+    .map((skill) => normalizeSearchText(skill))
+    .filter((skill) => skill.length >= 3);
+  const blockedKeywords = signals.blockedRoleKeywords.map((keyword) => normalizeSearchText(keyword));
 
-  const matchingSkills = requirements.filter((requirement) =>
-    profileSkills.some((skill: string) => {
-      if (skill.length < 3 || requirement.length < 3) {
-        return false;
-      }
-      return skill === requirement || requirement.includes(skill) || skill.includes(requirement);
-    }),
-  );
+  const roleHits = Array.from(new Set(roleTokens.filter((token) => jobText.includes(token))));
+  const rolePhraseHits = Array.from(new Set(rolePhrases.filter((keyword) => jobText.includes(keyword))));
+  const titleRoleHits = Array.from(new Set(roleTokens.filter((token) => jobTitle.includes(token))));
+  const exactSkillMatches = Array.from(new Set(profileSkills.filter((skill) => jobText.includes(skill))));
+  const requirementSkillHits = Array.from(new Set(jobRequirements.filter((requirement) =>
+    profileSkills.some((skill) => requirement.includes(skill) || skill.includes(requirement)),
+  )));
+  const bodySkillHits = Array.from(new Set(coreSkills.filter((skill) => jobDescription.includes(skill))));
+  const blockedMatch = blockedKeywords.some((keyword) => jobText.includes(keyword));
 
-  if (roleMatches.length > 0) {
-    score += Math.min(24, roleMatches.length * 8);
-    reasons.push(`rol alineado con ${roleMatches.slice(0, 3).join(", ")}`);
-  }
-
-  if (matchingSkills.length > 0) {
-    score += Math.min(26, matchingSkills.length * 5);
-    reasons.push(`coincidencias tecnicas en ${matchingSkills.slice(0, 3).join(", ")}`);
-  }
-
-  if (exactSkillMatches.length > 0) {
-    score += Math.min(18, exactSkillMatches.length * 4);
-    reasons.push(`stack visible en ${exactSkillMatches.slice(0, 3).join(", ")}`);
-  }
-
-  const hasStrongRoleEvidence = roleMatches.length > 0 || recentRoles.some((role) => title.includes(role));
-  const hasStrongSkillEvidence = matchingSkills.length >= 2 || exactSkillMatches.length >= 2;
-
-  if (!hasStrongRoleEvidence && !hasStrongSkillEvidence) {
-    score -= 22;
-    reasons.push("rol poco relacionado con tu experiencia principal");
-  }
-
-  if (hasUnrelatedRoleMarker && !hasStrongRoleEvidence) {
-    score -= 30;
-    reasons.push("dominio profesional distinto al de tu CV");
-  }
+  const hasStrongRoleEvidence = titleRoleHits.length > 0 || rolePhraseHits.length > 0;
+  const hasStrongSkillEvidence = requirementSkillHits.length >= 2 || exactSkillMatches.length >= 2 || bodySkillHits.length >= 2;
 
   const preferredLocationType = preferences?.locationType || "cualquiera";
-  if (preferredLocationType === "cualquiera" || preferredLocationType === candidate.locationType) {
-    score += 8;
+  const preferredJobType = preferences?.jobType || "cualquiera";
+  const expectedSeniority = preferences?.seniorityLevel || "cualquiera";
+
+  const locationMatches = preferredLocationType === "cualquiera" || preferredLocationType === job.locationType;
+  const jobTypeMatches = preferredJobType === "cualquiera" || preferredJobType === job.jobType;
+  const seniorityMatches = expectedSeniority === "cualquiera" || expectedSeniority === job.seniorityLevel;
+
+  let domainFitScore = 0;
+  domainFitScore += Math.min(42, titleRoleHits.length * 16);
+  domainFitScore += Math.min(24, rolePhraseHits.length * 8);
+  domainFitScore += Math.min(14, roleHits.length * 4);
+  domainFitScore += Math.min(24, requirementSkillHits.length * 8);
+  domainFitScore += Math.min(18, bodySkillHits.length * 6);
+  domainFitScore += Math.min(16, exactSkillMatches.length * 4);
+
+  if (!hasStrongRoleEvidence && !hasStrongSkillEvidence) {
+    domainFitScore -= 28;
+  }
+
+  if (blockedMatch && !hasStrongRoleEvidence) {
+    domainFitScore -= 40;
+  }
+
+  domainFitScore = Math.max(0, Math.min(100, domainFitScore));
+
+  let preferenceFitScore = 0;
+  if (locationMatches) {
+    preferenceFitScore += 10;
+  }
+  if (jobTypeMatches) {
+    preferenceFitScore += 6;
+  }
+  if (seniorityMatches) {
+    preferenceFitScore += 8;
+  }
+
+  return {
+    roleHits,
+    rolePhraseHits,
+    titleRoleHits,
+    requirementSkillHits,
+    bodySkillHits,
+    exactSkillMatches,
+    blockedMatch,
+    hasStrongRoleEvidence,
+    hasStrongSkillEvidence,
+    locationMatches,
+    jobTypeMatches,
+    seniorityMatches,
+    domainFitScore,
+    preferenceFitScore,
+  };
+}
+
+function calculateCompatibility(candidate: RealJobSearchCandidate, profile: any, preferences: any) {
+  let score = 24;
+  const reasons: string[] = [];
+  const signals = deriveProfileSignals(profile);
+  const evidence = evaluateJobProfileEvidence(candidate, signals, preferences);
+
+  score += Math.round(evidence.domainFitScore * 0.58);
+  score += evidence.preferenceFitScore;
+
+  if (evidence.titleRoleHits.length > 0) {
+    reasons.push(`titulo alineado con ${evidence.titleRoleHits.slice(0, 3).join(", ")}`);
+  } else if (evidence.rolePhraseHits.length > 0) {
+    reasons.push(`rol cercano a ${evidence.rolePhraseHits.slice(0, 2).join(", ")}`);
+  }
+
+  if (evidence.requirementSkillHits.length > 0) {
+    reasons.push(`requisitos compatibles en ${evidence.requirementSkillHits.slice(0, 3).join(", ")}`);
+  }
+
+  if (evidence.exactSkillMatches.length > 0) {
+    reasons.push(`stack visible en ${evidence.exactSkillMatches.slice(0, 3).join(", ")}`);
+  }
+
+  if (evidence.locationMatches) {
     reasons.push(`modalidad ${candidate.locationType}`);
   }
 
-  const preferredJobType = preferences?.jobType || "cualquiera";
-  if (preferredJobType === "cualquiera" || preferredJobType === candidate.jobType) {
-    score += 5;
+  if (evidence.jobTypeMatches) {
     reasons.push(`jornada ${candidate.jobType}`);
   }
 
-  const expectedSeniority = preferences?.seniorityLevel || "cualquiera";
-  if (expectedSeniority === "cualquiera" || expectedSeniority === candidate.seniorityLevel) {
-    score += 7;
+  if (evidence.seniorityMatches) {
     reasons.push(`seniority ${candidate.seniorityLevel}`);
-  } else if (expectedSeniority !== "cualquiera") {
+  } else if ((preferences?.seniorityLevel || "cualquiera") !== "cualquiera") {
     score -= 8;
   }
 
-  if (!hasStrongRoleEvidence && matchingSkills.length <= 1) {
-    score = Math.min(score, 54);
+  if (!evidence.hasStrongRoleEvidence && !evidence.hasStrongSkillEvidence) {
+    reasons.push("rol poco relacionado con tu experiencia principal");
+    score = Math.min(score, 50);
   }
 
-  if (hasUnrelatedRoleMarker && !hasStrongRoleEvidence) {
+  if (evidence.blockedMatch && !evidence.hasStrongRoleEvidence) {
+    reasons.push("dominio profesional distinto al de tu CV");
     score = Math.min(score, 35);
   }
 
@@ -1065,6 +1123,20 @@ function calculateCompatibility(candidate: RealJobSearchCandidate, profile: any,
       ? `Oferta real recuperada desde ${candidate.sourcePlatform}. Coincide contigo por ${reasons.join(", ")}. Revisa requisitos y aplica desde el enlace oficial.`
       : `Oferta real recuperada desde ${candidate.sourcePlatform}. La coincidencia es moderada y conviene revisar requisitos, seniority y salario antes de aplicar.`,
   };
+}
+
+function jobMatchesProfileDomain(job: RealJobSearchCandidate, signals: ReturnType<typeof deriveProfileSignals>, preferences: any) {
+  const evidence = evaluateJobProfileEvidence(job, signals, preferences);
+
+  if (evidence.blockedMatch && !evidence.hasStrongRoleEvidence) {
+    return false;
+  }
+
+  if (signals.careerFamily === "general") {
+    return evidence.domainFitScore >= 28;
+  }
+
+  return evidence.domainFitScore >= 36;
 }
 
 async function fetchJsonWithTimeout(url: string, timeoutMs = 12000) {
@@ -1087,6 +1159,125 @@ async function fetchJsonWithTimeout(url: string, timeoutMs = 12000) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function uniqueNormalizedQueries(queries: string[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const query of queries) {
+    const normalized = normalizeSearchText(query);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    result.push(query.trim());
+  }
+  return result;
+}
+
+function getRemoteHint(signals: ReturnType<typeof deriveProfileSignals>) {
+  if (signals.locationType === "remoto") {
+    return "remote";
+  }
+  if (signals.geographicScope === "global") {
+    return "worldwide";
+  }
+  if (signals.geographicScope === "latam") {
+    return "latam";
+  }
+  return "";
+}
+
+function mapAdzunaCountry(signals: ReturnType<typeof deriveProfileSignals>) {
+  const normalizedCountry = normalizeSearchText(signals.residentCountry || "");
+  const countryMap: Record<string, string> = {
+    peru: "pe",
+    colombia: "co",
+    mexico: "mx",
+    chile: "cl",
+    argentina: "ar",
+    brazil: "br",
+    brasil: "br",
+    usa: "us",
+    eeuu: "us",
+    "estados unidos": "us",
+    "united states": "us",
+    canada: "ca",
+    espana: "es",
+    spain: "es",
+    uk: "gb",
+    "united kingdom": "gb",
+    "reino unido": "gb",
+    germany: "de",
+    alemania: "de",
+    france: "fr",
+    francia: "fr",
+    italy: "it",
+    italia: "it",
+    netherlands: "nl",
+    "paises bajos": "nl",
+    india: "in",
+    singapore: "sg",
+    sudafrica: "za",
+    "south africa": "za",
+    poland: "pl",
+    australia: "au",
+    "new zealand": "nz",
+  };
+
+  return countryMap[normalizedCountry] || (process.env.ADZUNA_COUNTRY || "us");
+}
+
+function buildSourceQueries(source: SupportedJobSource, signals: ReturnType<typeof deriveProfileSignals>, explicitQuery?: string) {
+  const baseQueries = signals.searchQueries.length > 0
+    ? signals.searchQueries
+    : [signals.primaryRole || signals.coreSkillSet.slice(0, 2).join(" ") || "software engineer"];
+  const remoteHint = getRemoteHint(signals);
+  const country = signals.residentCountry?.trim();
+  const seniority = signals.seniority !== "cualquiera" ? signals.seniority : "";
+  const queries: string[] = [];
+
+  if (explicitQuery?.trim()) {
+    queries.push(explicitQuery.trim());
+  }
+
+  for (const query of baseQueries.slice(0, 6)) {
+    queries.push(query);
+
+    if (source === "remotive") {
+      if (remoteHint) {
+        queries.push(`${query} ${remoteHint}`);
+      }
+      if (seniority) {
+        queries.push(`${seniority} ${query}`);
+      }
+    } else {
+      if (country && signals.geographicScope !== "global") {
+        queries.push(`${query} ${country}`);
+      }
+      if (signals.locationType === "remoto") {
+        queries.push(`${query} remote`);
+      }
+      if (seniority) {
+        queries.push(`${seniority} ${query}`);
+      }
+    }
+  }
+
+  if (signals.primaryRole) {
+    if (source === "remotive" && remoteHint) {
+      queries.push(`${signals.primaryRole} ${remoteHint}`);
+    }
+    if (source === "adzuna" && country && signals.geographicScope !== "global") {
+      queries.push(`${signals.primaryRole} ${country}`);
+    }
+  }
+
+  return uniqueNormalizedQueries(
+    queries
+      .map((query) => query.trim())
+      .filter((query) => query.length >= 3),
+  ).slice(0, source === "remotive" ? 5 : 6);
 }
 
 async function fetchRemotiveJobs(query: string) {
@@ -1113,14 +1304,13 @@ async function fetchRemotiveJobs(query: string) {
   });
 }
 
-async function fetchAdzunaJobs(query: string) {
+async function fetchAdzunaJobs(query: string, country: string) {
   const appId = process.env.ADZUNA_APP_ID;
   const appKey = process.env.ADZUNA_APP_KEY;
   if (!appId || !appKey) {
     return [] as RealJobSearchCandidate[];
   }
 
-  const country = process.env.ADZUNA_COUNTRY || "us";
   const payload = await fetchJsonWithTimeout(
     `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${encodeURIComponent(appId)}&app_key=${encodeURIComponent(appKey)}&results_per_page=12&what=${encodeURIComponent(query)}&content-type=application/json`,
   );
@@ -1149,16 +1339,17 @@ async function fetchAdzunaJobs(query: string) {
   });
 }
 
-async function searchRealJobs(query: string) {
+async function searchRealJobs(source: SupportedJobSource, queries: string[], signals: ReturnType<typeof deriveProfileSignals>) {
   const aggregated: RealJobSearchCandidate[] = [];
   const seenUrls = new Set<string>();
   const failures: string[] = [];
+  const adzunaCountry = mapAdzunaCountry(signals);
 
-  for (const source of ["remotive", "adzuna"] as SupportedJobSource[]) {
+  for (const query of queries) {
     try {
       const jobs = source === "remotive"
         ? await fetchRemotiveJobs(query)
-        : await fetchAdzunaJobs(query);
+        : await fetchAdzunaJobs(query, adzunaCountry);
 
       for (const job of jobs) {
         if (!job.applyUrl || seenUrls.has(job.applyUrl)) {
@@ -1168,11 +1359,11 @@ async function searchRealJobs(query: string) {
         aggregated.push(job);
       }
     } catch (error: any) {
-      failures.push(`${source}: ${error.message || error}`);
+      failures.push(`${source}:${query}: ${error.message || error}`);
     }
   }
 
-  return { jobs: aggregated.slice(0, 12), failures };
+  return { jobs: aggregated.slice(0, 18), failures };
 }
 
 async function searchRealJobsForProfile(profile: any, explicitQuery?: string) {
@@ -1181,11 +1372,16 @@ async function searchRealJobsForProfile(profile: any, explicitQuery?: string) {
   const seenUrls = new Set<string>();
   const failures: string[] = [];
 
-  for (const profileQuery of signals.searchQueries) {
-    const { jobs, failures: queryFailures } = await searchRealJobs(profileQuery);
-    failures.push(...queryFailures.map((failure) => `${profileQuery}: ${failure}`));
+  for (const source of ["remotive", "adzuna"] as SupportedJobSource[]) {
+    const sourceQueries = buildSourceQueries(source, signals, explicitQuery);
+    const { jobs, failures: sourceFailures } = await searchRealJobs(source, sourceQueries, signals);
+    failures.push(...sourceFailures);
 
     for (const job of jobs) {
+      if (!jobMatchesProfileDomain(job, signals, profile?.preferences)) {
+        continue;
+      }
+
       const locationMatches =
         signals.locationType === "cualquiera" || job.locationType === signals.locationType;
       const seniorityMatches =
@@ -1218,26 +1414,11 @@ const jobsSearchHandler: express.RequestHandler = async (req, res) => {
   // Smart Query Generation
   let smartQuery = query;
   if (!smartQuery || smartQuery.trim().length === 0) {
-    const roles = profile?.experience?.map((e: any) => (e.role || "").toLowerCase()) || [];
-    const skills = profile?.skills?.map((s: string) => s.toLowerCase()) || [];
-    
-    const isSysAdmin = roles.some((r: string) => r.includes("sysadmin") || r.includes("system administrator") || r.includes("administrador de sistemas") || r.includes("linux")) ||
-                      skills.some((s: string) => s.includes("sysadmin") || s.includes("linux") || s.includes("system administrator") || s.includes("redes") || s.includes("servidores"));
-                      
-    const isDevOps = roles.some((r: string) => r.includes("devops") || r.includes("site reliability") || r.includes("sre") || r.includes("cloud")) ||
-                     skills.some((s: string) => s.includes("devops") || s.includes("docker") || s.includes("kubernetes") || s.includes("aws") || s.includes("terraform"));
-                     
-    if (isSysAdmin) {
-      smartQuery = "Administrador de Sistemas / Sysadmin / Linux / Redes / Infraestructura";
-    } else if (isDevOps) {
-      smartQuery = "Ingeniero DevOps / Cloud / SRE";
-    } else if (roles.length > 0) {
-      smartQuery = profile.experience[0].role;
-    } else if (skills.length > 0) {
-      smartQuery = skills.slice(0, 3).join(", ");
-    } else {
-      smartQuery = "cualquiera";
-    }
+    const signals = deriveProfileSignals({
+      ...profile,
+      preferences,
+    });
+    smartQuery = signals.searchQueries[0] || signals.primaryRole || "cualquiera";
   }
 
   try {
@@ -1259,10 +1440,26 @@ const jobsSearchHandler: express.RequestHandler = async (req, res) => {
       return res.json([]);
     }
 
-    const enrichedJobs = jobs.map((job) => ({
-      ...job,
-      ...calculateCompatibility(job, profile, preferences),
-    }));
+    const rankingSignals = deriveProfileSignals(profile);
+    const enrichedJobs = jobs.map((job) => {
+      const evidence = evaluateJobProfileEvidence(job, rankingSignals, preferences);
+      return {
+        ...job,
+        ...calculateCompatibility(job, profile, preferences),
+        __domainFitScore: evidence.domainFitScore,
+        __preferenceFitScore: evidence.preferenceFitScore,
+      };
+    })
+      .sort((left, right) => {
+        if (right.compatibilityScore !== left.compatibilityScore) {
+          return right.compatibilityScore - left.compatibilityScore;
+        }
+        if (right.__domainFitScore !== left.__domainFitScore) {
+          return right.__domainFitScore - left.__domainFitScore;
+        }
+        return right.__preferenceFitScore - left.__preferenceFitScore;
+      })
+      .map(({ __domainFitScore, __preferenceFitScore, ...job }) => job);
 
     return res.json(enrichedJobs);
   } catch (error: any) {
@@ -2601,6 +2798,11 @@ export {
   goalsQuizHandler,
   interviewTechnicalQuestionsHandler,
   interviewTechnicalEvaluateHandler,
+  calculateCompatibility,
+  evaluateJobProfileEvidence,
+  jobMatchesProfileDomain,
+  mapAdzunaCountry,
+  buildSourceQueries,
 };
 
 
